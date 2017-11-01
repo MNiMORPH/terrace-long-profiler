@@ -69,22 +69,12 @@ def long_profiler(DataDirectory,fname_prefix):
 
     Author: AW, FJC
     """
-    """
-    lp = pd.read_csv('Rio_Toro_baseline_channel_info.csv')
-
-    x_lp = sorted(list(set(list(lp.DistAlongBaseline))))
-    z_lp = []
-    for x_i in x_lp:
-        z_lp.append(np.mean(lp.Elevation.values[x_lp == x_i]))
-    # /usr/bin/ipython:2: VisibleDeprecationWarning: boolean index did not match indexed array along dimension 0; dimension is 3790331 but corresponding boolean dimension is 6490
-
-    plt.plot(x_lp, z_lp, 'k-', linewidth=2)
-    """
     # read in the terrace csv
     terraces = read_terrace_csv(DataDirectory,fname_prefix)
 
     # read in the baseline channel csv
     lp = read_channel_csv(DataDirectory,fname_prefix)
+    lp = lp[lp['Elevation'] != -9999]
 
     terraceIDs = sorted(list(set(list(terraces.TerraceID))))
     xTerraces = []
@@ -114,48 +104,37 @@ def long_profiler(DataDirectory,fname_prefix):
                 zTerraces.append(_z_unique)
                 newIDs.append(terraceID)
 
-    all_x = []
-    all_z = []
-    all_ids = []
-    #flatten into arrays for plotting
-    for n in range(len(xTerraces)):
-        for x in range(len(xTerraces[n])):
-            all_x.append(xTerraces[n][x])
-            all_z.append(zTerraces[n][x])
-            all_ids.append(newIDs[n])
-
     # make the plot
     fig = plt.figure()
     gs = plt.GridSpec(100,100,bottom=0.15,left=0.05,right=0.85,top=1.0)
     ax = fig.add_subplot(gs[5:100,10:95])
 
-    # make a random colormap
+    # get discrete colours so that each terrace is a different colour
     this_cmap = cm.rainbow
     this_cmap = colours.cmap_discretize(len(newIDs),this_cmap)
+    print "N COLOURS: ", len(newIDs)
+    print newIDs
     colors = iter(this_cmap(np.linspace(0, 1, len(newIDs))))
-
+    # plot the terraces
     for i in range(len(xTerraces)):
         plt.plot(xTerraces[i], zTerraces[i], 'o', c=next(colors))
 
-    #norm=plt.Normalize(vmin=min(all_ids), vmax=max(all_ids))
-    #ax.scatter(all_x,all_z,c=all_ids, cmap=new_cmap)
+    # plot the main stem channel in black
+    plt.plot(lp['DistAlongBaseline'],lp['Elevation'], c='k')
 
     # add a colourbar
-    #this_cmap = colours.cmap_discretize(cm.rainbow,len(newIDs))
     cax = fig.add_axes([0.86,0.15,0.03,0.8])
     sm = plt.cm.ScalarMappable(cmap=this_cmap, norm=plt.Normalize(vmin=min(newIDs), vmax=max(newIDs)))
     sm._A = []
     cbar = plt.colorbar(sm,cmap=this_cmap,spacing='uniform',cax=cax, label='Terrace ID', orientation='vertical')
-    colours.fix_colourbar_ticks(cbar,len(newIDs),cbar_type=int,min_value=min(all_ids),max_value=max(all_ids))
+    colours.fix_colourbar_ticks(cbar,len(newIDs),cbar_type=int,min_value=min(newIDs),max_value=max(newIDs),labels=newIDs)
 
-    #plt.ion()
-    #plt.show()
+    # set axis params and save
     ax.set_xlabel('Distance upstream (m)')
     ax.set_ylabel('Elevation (m)')
-    plt.savefig(DataDirectory+fname_prefix+'_terrace_plot_test.png',format='png',dpi=300)
+    plt.savefig(DataDirectory+fname_prefix+'_terrace_plot.png',format='png',dpi=300)
 
-
-    x_terraces = sorted(list(set(list(lp.DistAlongBaseline))))
-    z_terraces = []
-    for x_i in x_terraces:
-        z_terraces.append(np.mean(lp.Elevation.values[x_terraces == x_i]))
+    # x_terraces = sorted(list(set(list(lp.DistAlongBaseline))))
+    # z_terraces = []
+    # for x_i in x_terraces:
+    #     z_terraces.append(np.mean(lp.Elevation.values[x_terraces == x_i]))

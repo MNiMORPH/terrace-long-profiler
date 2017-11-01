@@ -32,7 +32,7 @@ def cmap_discretize(N, cmap):
     # Return colormap object.
     return _mcolors.LinearSegmentedColormap(cmap.name + "_%d"%N, cdict, 1024)
 
-def fix_colourbar_ticks(cbar,n_colours, cbar_type=float, min_value = 0, max_value = 0, colourbar_orientation='vertical'):
+def fix_colourbar_ticks(cbar,n_colours, cbar_type=float, min_value = 0, max_value = 0, colourbar_orientation='vertical', labels=None):
     """
     This function takes a discrete colourbar and fixes the ticks so they are
     in the middle of each colour
@@ -49,7 +49,7 @@ def fix_colourbar_ticks(cbar,n_colours, cbar_type=float, min_value = 0, max_valu
         min_value: the minimum value on the colourbar
         max_value: the maximum value on the colourbar
         colourbar_orientation: orientation, either horizontal or vertical. Default vertical.
-
+        labels: a list of labels for the colourbar, if None then won't plot any.
     Returns:
         None but fixes ticks
 
@@ -62,12 +62,12 @@ def fix_colourbar_ticks(cbar,n_colours, cbar_type=float, min_value = 0, max_valu
 
     # get the additional end spacing for colourbar
     tick_spacing = math.ceil(float(vmax-vmin)/float(n_colours))
-    print "TICK SPACING: ",tick_spacing
+    print "TICK SPACING", tick_spacing
     new_vmin = vmin+(tick_spacing/2)
     new_vmax = vmax-(tick_spacing/2)
 
     #get list of tick locations
-    tick_locs = _np.linspace(new_vmin, new_vmax, num=tick_spacing)
+    tick_locs = _np.linspace(new_vmin, new_vmax, num=n_colours)
     print tick_locs
 
     # update ticks
@@ -76,17 +76,18 @@ def fix_colourbar_ticks(cbar,n_colours, cbar_type=float, min_value = 0, max_valu
     cbar.update_ticks()
 
     # get tick labels
-    tick_labels = _np.linspace(vmin, vmax, n_colours)
-    if cbar_type == int:
-        tick_labels = [str(int(x)) for x in tick_labels]
-    else:
-        tick_labels = [str(x) for x in tick_labels]
-    print tick_labels
+    #tick_labels = _np.linspace(vmin, vmax, n_colours)
+    # if cbar_type == int:
+    #     tick_labels = [str(int(x)) for x in tick_labels]
+    # else:
+    #     tick_labels = [str(x) for x in tick_labels]
+    # print tick_labels
 
-    if colourbar_orientation == "horizontal":
-        cbar.ax.set_xticklabels(tick_labels)
-    else:
-        cbar.ax.set_yticklabels(tick_labels)
+    if labels is not None:
+        if colourbar_orientation == "horizontal":
+            cbar.ax.set_xticklabels(labels)
+        else:
+            cbar.ax.set_yticklabels(labels)
 
 def rand_cmap(nlabels, type='bright', first_color_black=True, last_color_black=False, verbose=True):
     """
