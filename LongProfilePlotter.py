@@ -11,6 +11,7 @@ import pandas as pd
 import numpy as np
 from matplotlib import pyplot as plt
 import colours
+import matplotlib.cm as cm
 
 def read_terrace_csv(DataDirectory,fname_prefix):
     """
@@ -113,12 +114,6 @@ def long_profiler(DataDirectory,fname_prefix):
                 zTerraces.append(_z_unique)
                 newIDs.append(terraceID)
 
-    # get the colourmap for the terrace IDs
-    n_colours = len(newIDs)
-    print "N COLOURS: ", n_colours
-    cmap = plt.cm.Set2
-    this_cmap = colours.cmap_discretize(n_colours, cmap)
-
     all_x = []
     all_z = []
     all_ids = []
@@ -133,23 +128,31 @@ def long_profiler(DataDirectory,fname_prefix):
     fig = plt.figure()
     gs = plt.GridSpec(100,100,bottom=0.15,left=0.05,right=0.85,top=1.0)
     ax = fig.add_subplot(gs[5:100,10:95])
-    # for i in range(len(xTerraces)):
-    #     plt.plot(xTerraces[i], zTerraces[i], 'o')
 
-    ax.scatter(all_x,all_z,c=all_ids, cmap=this_cmap)
+    # make a random colormap
+    this_cmap = cm.rainbow
+    this_cmap = colours.cmap_discretize(len(newIDs),this_cmap)
+    colors = iter(this_cmap(np.linspace(0, 1, len(newIDs))))
+
+    for i in range(len(xTerraces)):
+        plt.plot(xTerraces[i], zTerraces[i], 'o', c=next(colors))
+
+    #norm=plt.Normalize(vmin=min(all_ids), vmax=max(all_ids))
+    #ax.scatter(all_x,all_z,c=all_ids, cmap=new_cmap)
 
     # add a colourbar
+    #this_cmap = colours.cmap_discretize(cm.rainbow,len(newIDs))
     cax = fig.add_axes([0.86,0.15,0.03,0.8])
-    sm = plt.cm.ScalarMappable(cmap=this_cmap, norm=plt.Normalize(vmin=min(all_ids), vmax=max(all_ids)))
+    sm = plt.cm.ScalarMappable(cmap=this_cmap, norm=plt.Normalize(vmin=min(newIDs), vmax=max(newIDs)))
     sm._A = []
     cbar = plt.colorbar(sm,cmap=this_cmap,spacing='uniform',cax=cax, label='Terrace ID', orientation='vertical')
-    colours.fix_colourbar_ticks(cbar,n_colours,cbar_type=int,min_value=min(all_ids),max_value=max(all_ids))
+    colours.fix_colourbar_ticks(cbar,len(newIDs),cbar_type=int,min_value=min(all_ids),max_value=max(all_ids))
 
     #plt.ion()
     #plt.show()
     ax.set_xlabel('Distance upstream (m)')
     ax.set_ylabel('Elevation (m)')
-    plt.savefig(DataDirectory+fname_prefix+'_terrace_plot.png',format='png',dpi=300)
+    plt.savefig(DataDirectory+fname_prefix+'_terrace_plot_test.png',format='png',dpi=300)
 
 
     x_terraces = sorted(list(set(list(lp.DistAlongBaseline))))

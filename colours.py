@@ -55,18 +55,19 @@ def fix_colourbar_ticks(cbar,n_colours, cbar_type=float, min_value = 0, max_valu
 
     Author: FJC
     """
+    import math
 
     vmin=min_value
     vmax=max_value
 
     # get the additional end spacing for colourbar
-    tick_spacing = (vmax-vmin)/(n_colours)
-    print tick_spacing
-    new_vmin = vmin-(tick_spacing/2)
-    new_vmax = vmax+(tick_spacing/2)+tick_spacing
+    tick_spacing = math.ceil(float(vmax-vmin)/float(n_colours))
+    print "TICK SPACING: ",tick_spacing
+    new_vmin = vmin+(tick_spacing/2)
+    new_vmax = vmax-(tick_spacing/2)
 
     #get list of tick locations
-    tick_locs = _np.arange(new_vmin, new_vmax, step=tick_spacing)
+    tick_locs = _np.linspace(new_vmin, new_vmax, num=tick_spacing)
     print tick_locs
 
     # update ticks
@@ -102,7 +103,7 @@ def rand_cmap(nlabels, type='bright', first_color_black=True, last_color_black=F
         colormap for matplotlib
 
     Author: FJC
-    
+
     from https://github.com/delestro/rand_cmap
     """
     from matplotlib.colors import LinearSegmentedColormap
