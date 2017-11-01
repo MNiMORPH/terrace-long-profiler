@@ -49,7 +49,7 @@ def fix_colourbar_ticks(cbar,n_colours, cbar_type=float, min_value = 0, max_valu
         min_value: the minimum value on the colourbar
         max_value: the maximum value on the colourbar
         colourbar_orientation: orientation, either horizontal or vertical. Default vertical.
-        labels: a list of labels for the colourbar, if None then won't plot any.
+        labels: a list of labels for the colourbar, if None then will just plot the old labels.
     Returns:
         None but fixes ticks
 

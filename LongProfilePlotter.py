@@ -117,10 +117,10 @@ def long_profiler(DataDirectory,fname_prefix):
     colors = iter(this_cmap(np.linspace(0, 1, len(newIDs))))
     # plot the terraces
     for i in range(len(xTerraces)):
-        plt.plot(xTerraces[i], zTerraces[i], 'o', c=next(colors))
+        plt.scatter(xTerraces[i], zTerraces[i], s=2, c=next(colors))
 
     # plot the main stem channel in black
-    plt.plot(lp['DistAlongBaseline'],lp['Elevation'], c='k')
+    plt.plot(lp['DistAlongBaseline'],lp['Elevation'], c='k', lw=2)
 
     # add a colourbar
     cax = fig.add_axes([0.86,0.15,0.03,0.8])
