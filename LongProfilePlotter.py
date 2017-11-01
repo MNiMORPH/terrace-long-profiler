@@ -10,6 +10,7 @@
 import pandas as pd
 import numpy as np
 from matplotlib import pyplot as plt
+import colours
 
 def read_terrace_csv(DataDirectory,fname_prefix):
     """
@@ -88,6 +89,7 @@ def long_profiler(DataDirectory,fname_prefix):
     xTerraces = []
     zTerraces = []
     yTerraces = []
+    newIDs = []
 
     # loop through the terrace IDs and get the x, y, and z values
     for terraceID in terraceIDs:
@@ -109,12 +111,44 @@ def long_profiler(DataDirectory,fname_prefix):
             if np.mean(np.diff(_z_unique)/np.diff(_x_unique)) < 10:
                 xTerraces.append(_x_unique)
                 zTerraces.append(_z_unique)
+                newIDs.append(terraceID)
 
+    # get the colourmap for the terrace IDs
+    n_colours = len(newIDs)
+    print "N COLOURS: ", n_colours
+    cmap = plt.cm.Set2
+    this_cmap = colours.cmap_discretize(n_colours, cmap)
+
+    all_x = []
+    all_z = []
+    all_ids = []
+    #flatten into arrays for plotting
+    for n in range(len(xTerraces)):
+        for x in range(len(xTerraces[n])):
+            all_x.append(xTerraces[n][x])
+            all_z.append(zTerraces[n][x])
+            all_ids.append(newIDs[n])
+
+    # make the plot
     fig = plt.figure()
-    for i in range(len(xTerraces)):
-        plt.plot(xTerraces[i], zTerraces[i], 'o')
+    gs = plt.GridSpec(100,100,bottom=0.15,left=0.05,right=0.85,top=1.0)
+    ax = fig.add_subplot(gs[5:100,10:95])
+    # for i in range(len(xTerraces)):
+    #     plt.plot(xTerraces[i], zTerraces[i], 'o')
+
+    ax.scatter(all_x,all_z,c=all_ids, cmap=this_cmap)
+
+    # add a colourbar
+    cax = fig.add_axes([0.86,0.15,0.03,0.8])
+    sm = plt.cm.ScalarMappable(cmap=this_cmap, norm=plt.Normalize(vmin=min(all_ids), vmax=max(all_ids)))
+    sm._A = []
+    cbar = plt.colorbar(sm,cmap=this_cmap,spacing='uniform',cax=cax, label='Terrace ID', orientation='vertical')
+    colours.fix_colourbar_ticks(cbar,n_colours,cbar_type=int,min_value=min(all_ids),max_value=max(all_ids))
+
     #plt.ion()
     #plt.show()
+    ax.set_xlabel('Distance upstream (m)')
+    ax.set_ylabel('Elevation (m)')
     plt.savefig(DataDirectory+fname_prefix+'_terrace_plot.png',format='png',dpi=300)
 
 
