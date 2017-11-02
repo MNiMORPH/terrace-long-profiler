@@ -898,7 +898,7 @@ class MapFigure(object):
 
         if discrete==True:
             # change ticks
-            self.fix_colourbar_ticks(BaseRaster, cbar, n_colours, cbar_type, tick_labels)
+            self.fix_colourbar_ticks(BaseRaster, cbar, n_colours, cbar_type, tick_labels=tick_labels, use_baseraster=True)
 
         #Will's changes:
         # Changed rotation of colourbar text to 90 and the labelpad to -75 for "left"
@@ -910,11 +910,11 @@ class MapFigure(object):
         elif self.colourbar_location == 'left':
             ax_list[-1].set_ylabel(colorbarlabel, fontname='Arial',labelpad=-75,rotation=90)
         elif self.colourbar_location == 'right':
-            ax_list[-1].set_ylabel(colorbarlabel, fontname='Arial',labelpad=10,rotation=270)
+            ax_list[-1].set_ylabel(colorbarlabel, fontname='Arial',labelpad=15,rotation=270)
         return ax_list
 
     def fix_colourbar_ticks(self, BaseRaster, cbar,n_colours, cbar_type=float,
-                            use_baseraster = True, min_value = 0, max_value = 0, cbar_label_rotation=30, tick_labels=None):
+                            use_baseraster = True, min_value = 0, max_value = 0, cbar_label_rotation=0, tick_labels=None):
         """
         This function takes a discrete colourbar and fixes the ticks so they are
         in the middle of each colour

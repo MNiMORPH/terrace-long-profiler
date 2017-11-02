@@ -234,10 +234,10 @@ def raster_plotter(DataDirectory,fname_prefix, FigFormat='png', size_format='ESU
     n_colours=len(newIDs)
 
     # create the map figure
-    MF = MapFigure(HillshadeName, DataDirectory, coord_type='UTM_km', colourbar_location='bottom')
+    MF = MapFigure(HillshadeName, DataDirectory, coord_type='UTM_km', colourbar_location='right')
     # add the terrace drape
     terrace_cmap = plt.cm.rainbow
-    terrace_cmap = colours.cmap_discretize(n_colours,terrace_cmap)
+    #terrace_cmap = colours.cmap_discretize(n_colours,terrace_cmap)
     MF.add_drape_image(TerraceIDName, DataDirectory, colourmap = terrace_cmap, discrete_cmap=True, cbar_type=int, n_colours=n_colours, colorbarlabel="Terrace ID", alpha=0.8)
 
     ImageName = DataDirectory+fname_prefix+'_terrace_IDs_raster_plot.'+FigFormat

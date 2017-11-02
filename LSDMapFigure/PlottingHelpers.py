@@ -14,7 +14,7 @@ import pandas as pd
 
 #==============================================================================
 def MapFigureSizer(figure_width_inches,aspect_ratio, cbar_loc = "None", title = "None",
-                   cbar_width = 0.2,
+                   cbar_width = 0.18,
                    cbar_text_width = 0.4,
                    cbar_padding = 0.1,
                    cbar_fraction = 1,
