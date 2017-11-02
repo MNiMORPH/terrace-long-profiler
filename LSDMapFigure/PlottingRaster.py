@@ -509,7 +509,7 @@ class MapFigure(object):
                          colour_min_max = [],
                          modify_raster_values = False,
                          old_values=[], new_values = [], cbar_type=float,
-                         NFF_opti = False, custom_min_max = []):
+                         NFF_opti = False, custom_min_max = [], tick_labels=None):
         """
         This function adds a drape over the base raster. It does all the dirty work
         I can't quite remember why I did it in two steps but I vaguely recall trying it in one step and it didn't work.
@@ -531,6 +531,7 @@ class MapFigure(object):
             cbar_type (type): Sets the type of the colourbar (if you want int labels, set to int)
             NFF_opti (bool): If true, uses the new file loading functions. It is faster but hasn't been completely tested.
             custom_min_max (list of int/float): if it contains two elements, recast the raster to [min,max] values for display.
+            tick_labels: option to pass in a list of values to label the ticks of the colourbar. if None then will just define them linearly.
 
         Author: SMM
         """
@@ -583,7 +584,7 @@ class MapFigure(object):
         if self.colourbar_orientation != "None":
             self.ax_list = self.add_colourbar(self.ax_list,im,self._RasterList[-1],
                                               colorbarlabel = colorbarlabel, discrete=discrete_cmap,
-                                              n_colours=n_colours, cbar_type=cbar_type)
+                                              n_colours=n_colours, cbar_type=cbar_type, tick_labels=tick_labels)
 
 
         return self.ax_list
@@ -648,7 +649,7 @@ class MapFigure(object):
           BasinInfoDF = phelp.ReadBasinInfoCSV(Directory, BasinInfoPrefix)
         else:
           BasinInfoDF = phelp.AppendBasinInfoCSVs(Directory)
-        
+
         # Extract the basin keys
         basin_keys = list(BasinInfoDF['basin_key'])
         basin_keys = [int(x) for x in basin_keys]
@@ -875,7 +876,7 @@ class MapFigure(object):
         # Return colormap object.
         return _mcolors.LinearSegmentedColormap(cmap.name + "_%d"%N, cdict, 1024)
 
-    def add_colourbar(self,ax_list,im,BaseRaster,colorbarlabel = "Colourbar",discrete=False, n_colours=10, cbar_type=float):
+    def add_colourbar(self,ax_list,im,BaseRaster,colorbarlabel = "Colourbar",discrete=False, n_colours=10, cbar_type=float, tick_labels=None):
         """
         This adds the colourbar to the image.
         IMPORTANT: It assumes the colourbar occupies the last axis element
@@ -897,7 +898,7 @@ class MapFigure(object):
 
         if discrete==True:
             # change ticks
-            self.fix_colourbar_ticks(BaseRaster, cbar, n_colours, cbar_type)
+            self.fix_colourbar_ticks(BaseRaster, cbar, n_colours, cbar_type, tick_labels)
 
         #Will's changes:
         # Changed rotation of colourbar text to 90 and the labelpad to -75 for "left"
@@ -913,7 +914,7 @@ class MapFigure(object):
         return ax_list
 
     def fix_colourbar_ticks(self, BaseRaster, cbar,n_colours, cbar_type=float,
-                            use_baseraster = True, min_value = 0, max_value = 0, cbar_label_rotation=30):
+                            use_baseraster = True, min_value = 0, max_value = 0, cbar_label_rotation=30, tick_labels=None):
         """
         This function takes a discrete colourbar and fixes the ticks so they are
         in the middle of each colour
@@ -968,13 +969,13 @@ class MapFigure(object):
 
         #print BaseRaster._RasterArray[np.isnan(BaseRaster._RasterArray) == False]
 
-        # get tick labels
-        tick_labels = np.linspace(vmin, vmax, n_colours)
-        if cbar_type == int:
-            tick_labels = [str(int(x)) for x in tick_labels]
-        else:
-            tick_labels = [str(x) for x in tick_labels]
-        print tick_labels
+        if tick_labels == None:
+            tick_labels = np.linspace(vmin, vmax, n_colours)
+            if cbar_type == int:
+                tick_labels = [str(int(x)) for x in tick_labels]
+            else:
+                tick_labels = [str(x) for x in tick_labels]
+            print tick_labels
 
         if self.colourbar_orientation == "horizontal":
             cbar.ax.set_xticklabels(tick_labels, rotation=cbar_label_rotation)
@@ -1327,7 +1328,7 @@ class MapFigure(object):
         # rewrite with new values if you need to (for basins)
         print points
         print label_dict
-        
+
         new_points = {}
         if label_dict:
             for key, label in label_dict.iteritems():

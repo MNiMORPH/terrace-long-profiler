@@ -27,6 +27,11 @@ def main(argv):
 
     # What sort of analyses you want to do
     parser.add_argument("-LP", "--long_profiler", type=bool, default=True, help="If this is true, I'll make plots of the terrace long profiles (Default = true)")
+    parser.add_argument("-PR", "--plot_rasters", type=bool, default=False, help="If this is true, I'll make raster plots of the terrace locations (Default=false)")
+
+    # These control the format of your figures
+    parser.add_argument("-fmt", "--FigFormat", type=str, default='png', help="Set the figure format for the plots. Default is png")
+    parser.add_argument("-size", "--size_format", type=str, default='ESURF', help="Set the size format for the figure. Can be 'big' (16 inches wide), 'geomorphology' (6.25 inches wide), or 'ESURF' (4.92 inches wide) (defualt esurf).")
 
     args = parser.parse_args()
 
@@ -47,6 +52,8 @@ def main(argv):
 
     if args.long_profiler:
         LongProfilePlotter.long_profiler(this_dir, args.fname_prefix)
+    if args.plot_rasters:
+        LongProfilePlotter.raster_plotter(this_dir, args.fname_prefix, args.FigFormat, args.size_format)
 
 #=============================================================================
 # This is just a welcome screen that is displayed if no arguments are provided.
