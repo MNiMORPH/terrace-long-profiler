@@ -152,10 +152,10 @@ def long_profiler(DataDirectory,fname_prefix, FigFormat='png', size_format='ESUR
     # for x_i in x_terraces:
     #     z_terraces.append(np.mean(lp.Elevation.values[x_terraces == x_i]))
 
-def raster_plotter(DataDirectory,fname_prefix, FigFormat='png', size_format='ESURF'):
+def MakeRasterPlotTerraceIDs(DataDirectory,fname_prefix, FigFormat='png', size_format='ESURF'):
     """
     This function makes a hillshade of the DEM with the terraces
-    plotted onto it.
+    plotted onto it coloured by their ID
 
     Args:
         DataDirectory (str): the data directory
@@ -241,4 +241,95 @@ def raster_plotter(DataDirectory,fname_prefix, FigFormat='png', size_format='ESU
     MF.add_drape_image(TerraceIDName, DataDirectory, colourmap = terrace_cmap, discrete_cmap=True, cbar_type=int, n_colours=n_colours, colorbarlabel="Terrace ID", alpha=0.8)
 
     ImageName = DataDirectory+fname_prefix+'_terrace_IDs_raster_plot.'+FigFormat
+    MF.save_fig(fig_width_inches = fig_width_inches, FigFileName = ImageName, FigFormat=FigFormat, Fig_dpi = 300) # Save the figure
+
+def MakeRasterPlotTerraceElev(DataDirectory,fname_prefix, FigFormat='png', size_format='ESURF'):
+    """
+    This function makes a hillshade of the DEM with the terraces
+    plotted onto it coloured by their elevation
+
+    Args:
+        DataDirectory (str): the data directory
+        fname_prefix (str): the name of the DEM without extension.
+        FigFormat (str): the figure format, default='png'
+        size_format (str): Can be "big" (16 inches wide), "geomorphology" (6.25 inches wide), or "ESURF" (4.92 inches wide) (defualt esurf).
+
+    Returns:
+        Raster plot of terrace IDs
+
+    Author: FJC
+
+    """
+    from LSDMapFigure.PlottingRaster import BaseRaster
+    from LSDMapFigure.PlottingRaster import MapFigure
+
+    # Set up fonts for plots
+    label_size = 10
+    rcParams['font.family'] = 'sans-serif'
+    rcParams['font.sans-serif'] = ['arial']
+    rcParams['font.size'] = label_size
+
+    # make a figure
+    if size_format == "geomorphology":
+        #fig = plt.figure(1, facecolor='white',figsize=(6.25,3.5))
+        fig_width_inches=6.25
+        #l_pad = -40
+    elif size_format == "big":
+        #fig = plt.figure(1, facecolor='white',figsize=(16,9))
+        fig_width_inches=16
+        #l_pad = -50
+    else:
+        fig_width_inches = 4.92126
+        #fig = plt.figure(1, facecolor='white',figsize=(4.92126,3.2))
+        #l_pad = -35
+
+    # going to make the terrace plots - need to have bil extensions.
+    print("I'm going to make a raster plot of terrace elevations. Your topographic data must be in ENVI bil format or I'll break!!")
+
+    # get the rasters
+    raster_ext = '.bil'
+    BackgroundRasterName = fname_prefix+raster_ext
+    HillshadeName = fname_prefix+'_hs'+raster_ext
+    TerraceElevName = fname_prefix+'_terrace_relief_final'+raster_ext
+
+    # get the terrace csv
+    terraces = read_terrace_csv(DataDirectory,fname_prefix)
+    terraceIDs = sorted(list(set(list(terraces.TerraceID))))
+    xTerraces = []
+    zTerraces = []
+    yTerraces = []
+    newIDs = []
+
+    # loop through the terrace IDs and get the x, y, and z values
+    for terraceID in terraceIDs:
+        _terrace_subset = (terraces.TerraceID.values == terraceID)
+        _x = terraces['DistAlongBaseline'].values[_terrace_subset]
+        _y = terraces['DistToBaseline'].values[_terrace_subset]
+        _z = terraces['Elevation'].values[_terrace_subset]
+        _x_unique = sorted(list(set(list(_x))))
+        _z_unique = []
+        # Filter
+        if len(_x) > 50 and len(_x_unique) > 1 and len(_x_unique) < 1000:
+            #print np.max(np.diff(_x_unique))
+            #if len(_x_unique) > 10 and len(_x_unique) < 1000 \
+            #and :
+            for _x_unique_i in _x_unique:
+                #_y_unique_i = np.min(np.array(_y)[_x == _x_unique_i])
+                #_z_unique.append(np.min(_z[_y == _y_unique_i]))
+                _z_unique.append(np.min(_z[_x == _x_unique_i]))
+            if np.mean(np.diff(_z_unique)/np.diff(_x_unique)) < 10:
+                xTerraces.append(_x_unique)
+                zTerraces.append(_z_unique)
+                newIDs.append(terraceID)
+
+    n_colours=len(newIDs)
+
+    # create the map figure
+    MF = MapFigure(HillshadeName, DataDirectory, coord_type='UTM_km', colourbar_location='right')
+    # add the terrace drape
+    terrace_cmap = plt.cm.Reds
+    #terrace_cmap = colours.cmap_discretize(n_colours,terrace_cmap)
+    MF.add_drape_image(TerraceElevName, DataDirectory, colourmap = terrace_cmap, colorbarlabel="Elevation above channel (m)", alpha=0.8)
+
+    ImageName = DataDirectory+fname_prefix+'_terrace_elev_raster_plot.'+FigFormat
     MF.save_fig(fig_width_inches = fig_width_inches, FigFileName = ImageName, FigFormat=FigFormat, Fig_dpi = 300) # Save the figure

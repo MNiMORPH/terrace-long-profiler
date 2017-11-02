@@ -53,7 +53,8 @@ def main(argv):
     if args.long_profiler:
         LongProfilePlotter.long_profiler(this_dir, args.fname_prefix)
     if args.plot_rasters:
-        LongProfilePlotter.raster_plotter(this_dir, args.fname_prefix, args.FigFormat, args.size_format)
+        LongProfilePlotter.MakeRasterPlotTerraceIDs(this_dir, args.fname_prefix, args.FigFormat, args.size_format)
+        LongProfilePlotter.MakeRasterPlotTerraceElev(this_dir, args.fname_prefix, args.FigFormat, args.size_format)
 
 #=============================================================================
 # This is just a welcome screen that is displayed if no arguments are provided.
