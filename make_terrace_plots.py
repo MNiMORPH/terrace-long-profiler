@@ -5,7 +5,7 @@
 import sys
 import os
 
-import LongProfilePlotter
+import TerracePlotter
 
 #=============================================================================
 # This is the main function that runs the whole thing
@@ -51,10 +51,10 @@ def main(argv):
         sys.exit()
 
     if args.long_profiler:
-        LongProfilePlotter.long_profiler(this_dir, args.fname_prefix)
+        TerracePlotter.long_profiler(this_dir, args.fname_prefix)
     if args.plot_rasters:
-        LongProfilePlotter.MakeRasterPlotTerraceIDs(this_dir, args.fname_prefix, args.FigFormat, args.size_format)
-        LongProfilePlotter.MakeRasterPlotTerraceElev(this_dir, args.fname_prefix, args.FigFormat, args.size_format)
+        TerracePlotter.MakeRasterPlotTerraceIDs(this_dir, args.fname_prefix, args.FigFormat, args.size_format)
+        TerracePlotter.MakeRasterPlotTerraceElev(this_dir, args.fname_prefix, args.FigFormat, args.size_format)
 
 #=============================================================================
 # This is just a welcome screen that is displayed if no arguments are provided.

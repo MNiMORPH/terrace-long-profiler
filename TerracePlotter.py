@@ -56,7 +56,34 @@ def read_channel_csv(DataDirectory,fname_prefix):
 
     return df
 
-def long_profiler(DataDirectory,fname_prefix, FigFormat='png', size_format='ESURF'):
+def filter_terraces(terrace_df,min_size=5000, max_size=1000000):
+    """
+    This function takes the initial terrace dataframe and sorts it to remove terraces
+    that are too small.
+
+    Args:
+        terrace_df: pandas dataframe with the terrace info
+        min_size (int): minimum n of pixels in each terrace
+        max_size (int): max n of pixels in each terrace
+
+    Returns:
+        dataframe with filtered terrace info.
+
+    Author: FJC
+    """
+    # first get the unique terrace IDs
+    terraceIDs = terrace_df.TerraceID.unique()
+
+    # loop through unique IDs and check how many rows correspond to this ID, then
+    # remove any that are too small
+    for i in terraceIDs:
+        n_pixels = len(terrace_df[terrace_df['TerraceID'] == i])
+        if n_pixels < min_size or n_pixels > max_size:
+            terrace_df = terrace_df[terrace_df['TerraceID'] != i]
+
+    return terrace_df
+
+def long_profiler(DataDirectory,fname_prefix, min_size=5000, FigFormat='png', size_format='ESURF'):
     """
     This function creates a plot of the terraces with distance
     downstream along the main channel.
@@ -64,6 +91,7 @@ def long_profiler(DataDirectory,fname_prefix, FigFormat='png', size_format='ESUR
     Args:
         DataDirectory (str): the data directory
         fname_prefix (str): the name of the DEM
+        min_size (int): the minimum number of pixels for a terrace. Any smaller ones will be excluded.
         FigFormat: the format of the figure, default = png
         size_format (str): Can be "big" (16 inches wide), "geomorphology" (6.25 inches wide), or "ESURF" (4.92 inches wide) (defualt esurf).
 
@@ -89,6 +117,7 @@ def long_profiler(DataDirectory,fname_prefix, FigFormat='png', size_format='ESUR
 
     # read in the terrace csv
     terraces = read_terrace_csv(DataDirectory,fname_prefix)
+    filter_terraces(terraces, min_size)
 
     # read in the baseline channel csv
     lp = read_channel_csv(DataDirectory,fname_prefix)
@@ -136,7 +165,7 @@ def long_profiler(DataDirectory,fname_prefix, FigFormat='png', size_format='ESUR
     plt.plot(lp['DistAlongBaseline'],lp['Elevation'], c='k', lw=2)
 
     # add a colourbar
-    cax = fig.add_axes([0.86,0.15,0.03,0.8])
+    cax = fig.add_axes([0.83,0.15,0.03,0.8])
     sm = plt.cm.ScalarMappable(cmap=this_cmap, norm=plt.Normalize(vmin=min(newIDs), vmax=max(newIDs)))
     sm._A = []
     cbar = plt.colorbar(sm,cmap=this_cmap,spacing='uniform',cax=cax, label='Terrace ID', orientation='vertical')
@@ -147,10 +176,10 @@ def long_profiler(DataDirectory,fname_prefix, FigFormat='png', size_format='ESUR
     ax.set_ylabel('Elevation (m)')
     plt.savefig(DataDirectory+fname_prefix+'_terrace_plot.'+FigFormat,format=FigFormat,dpi=300)
 
-    # x_terraces = sorted(list(set(list(lp.DistAlongBaseline))))
-    # z_terraces = []
-    # for x_i in x_terraces:
-    #     z_terraces.append(np.mean(lp.Elevation.values[x_terraces == x_i]))
+    x_terraces = sorted(list(set(list(lp.DistAlongBaseline))))
+    z_terraces = []
+    for x_i in x_terraces:
+        z_terraces.append(np.mean(lp.Elevation.values[x_terraces == x_i]))
 
 def MakeRasterPlotTerraceIDs(DataDirectory,fname_prefix, FigFormat='png', size_format='ESURF'):
     """
