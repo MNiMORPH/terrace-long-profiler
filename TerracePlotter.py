@@ -110,6 +110,7 @@ def get_terrace_dip_and_dipdir(DataDirectory, fname_prefix, min_size=5000):
     """
     from scipy import linalg
     import math
+    from mpl_toolkits.mplot3d import Axes3D
 
     terrace_df = read_terrace_csv(DataDirectory,fname_prefix)
 
@@ -117,6 +118,11 @@ def get_terrace_dip_and_dipdir(DataDirectory, fname_prefix, min_size=5000):
     filter_terraces(terrace_df,min_size)
     terraceIDs = terrace_df.TerraceID.unique()
     print terraceIDs
+
+    dips = []
+    dip_dirs = []
+    XbarTerraces = []
+    YbarTerraces = []
 
     # get the info for each terrace ID
     for terraceID in terraceIDs:
@@ -131,44 +137,67 @@ def get_terrace_dip_and_dipdir(DataDirectory, fname_prefix, min_size=5000):
         # form: Z = C[0]*X + C[1]*Y + C[2]
         _XY = np.vstack((_X, _Y, np.ones(len(_Y)))).transpose()
         C,_,_,_ = linalg.lstsq(_XY, _z)
+        #print C,_,_,_
 
         # going to get the dip and dip direction using the unit normal vector
         # to the plane.
-        n_vec = np.array([C[0],C[1],C[2]])
-        # n vector projected onto the xy plane (multiply n_vec by (1,1,0))
-        n_xy = np.array([C[0],C[1],0])
-
+        a = -C[0]
+        b = -C[1]
+        c = 1
+        n_vec = np.array([a,b,c])
         print n_vec
+        # n vector projected onto the xy plane (multiply n_vec by (1,1,0))
+        n_xy = np.array([a,b,0])
+
+        #print n_vec
 
         # now get the dip = angle between n_vec and n_xy. angle between 2 vectors:
         # cos theta = (alpha . beta) / (|alpha| |beta|)
         # This gives the dip in radians
-        dip = math.acos((np.dot(n_vec,n_xy))/(np.linalg.norm(n_vec)*np.linalg.norm(n_xy)))
+        dip = np.arccos((np.dot(n_vec,n_xy))/(np.linalg.norm(n_vec)*np.linalg.norm(n_xy)))
         # convert to degrees
         dip = 90 - math.degrees(dip)
 
         # get the dip direction = angle between n_proj and the due north vector y = (0,1,0)
         y_vec = np.array([0,1,0])
-        dip_dir = math.acos((np.dot(n_xy,y_vec))/(np.linalg.norm(n_xy)*np.linalg.norm(y_vec)))
-        dip_dir = math.degrees(dip_dir)
+        theta = np.arccos((np.dot(n_xy,y_vec))/(np.linalg.norm(n_xy)*np.linalg.norm(y_vec)))
+        theta = math.degrees(theta)
+        print ("Theta", theta)
 
-        print ("Dip", dip)
-        print ("Dip direction", dip_dir)
+        # work out dip direction depending on orientation
+        if a > 0: # x is positive so dip dir is just theta
+            dip_dir = theta
+        else: # x is negative so dip dir is 180+theta?
+            dip_dir = theta+180
+
+
+        #print ("Dip", dip)
+        #print ("Strike", strike)
+        dips.append(dip)
+        dip_dirs.append(dip_dir)
+
+        # get the mean x and y for plotting
+        XbarTerraces.append(np.mean(_X))
+        YbarTerraces.append(np.mean(_Y))
 
         # fig = plt.figure()
         # ax = fig.add_subplot(111, projection='3d')
         # #ax.scatter(_X, _Y, _z, c='blue', depthshade=True)
         # _x0, _y0, _z0 = np.mean(_X), np.mean(_Y), np.mean(_z)
-        # _u0, _v0, _w0 = np.cos(_dip_direction), np.sin(_dip_direction), -_dip_slope
-        # #_u0, _v0, _w0 = -np.cos(_dip_direction), -np.sin(_dip_direction), -_dip
-        # #_u0, _v0, _w0 = C[0]/-_dip, C[1]/-_dip, -_dip
+        # _u0, _v0, _w0 = a, b, -dip
         # ax.quiver(_x0, _y0, _z0, _u0, _v0, _w0, length=50, arrow_length_ratio=.05, edgecolor='black', linewidth=4)
         # surf_xy = np.meshgrid( np.linspace(np.min(_X), np.max(_X), 20),
         # np.linspace(np.min(_Y), np.max(_Y), 20))
         # surf_z = C[0] * surf_xy[0] + C[1] * surf_xy[1] + C[2]
         # ax.plot_wireframe(surf_xy[0], surf_xy[1], surf_z, facecolors='k', alpha=1)
         # plt.title(terraceID)
+        # plt.show()
 
+    outarray = np.vstack((XbarTerraces, YbarTerraces, dips, dip_dirs)).transpose()
+    _column_names = ('X', 'Y', 'dip', 'dip_azimuth')
+    _index = np.arange(len(dips))+1
+    output_pd = pd.DataFrame(data = outarray, index=_index, columns=_column_names)
+    output_pd.to_csv(DataDirectory+fname_prefix+'_Dip_DipDirection.csv')
 
 
 def get_terrace_areas(terrace_df, min_size=5000):
