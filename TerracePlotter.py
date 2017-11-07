@@ -93,7 +93,7 @@ def filter_terraces(terrace_df,min_size=5000, max_size=1000000):
 
     return terrace_df
 
-def get_terrace_strike_and_dips(terrace_df, min_size=5000):
+def get_terrace_dip_and_dipdir(DataDirectory, fname_prefix, min_size=5000):
     """
     This function takes the initial terrace dataframe and calculates the dip and
     strike of the terrace surfaces. Fits a polynomial surface to the distribution
@@ -106,66 +106,68 @@ def get_terrace_strike_and_dips(terrace_df, min_size=5000):
     Returns:
         dataframe with filtered terrace info.
 
-    Author: AW, ported by FJC
+    Author: AW and FJC
     """
     from scipy import linalg
+    import math
+
+    terrace_df = read_terrace_csv(DataDirectory,fname_prefix)
 
     # filter the terraces to remove ones that are too small
     filter_terraces(terrace_df,min_size)
-    terraceIDs = list(terrace_df.TerraceID.values)
+    terraceIDs = terrace_df.TerraceID.unique()
+    print terraceIDs
 
     # get the info for each terrace ID
     for terraceID in terraceIDs:
-        _x = terrace_df['DistAlongBaseline'].values
-        _y = terrace_df['DistToBaseline'].values
-        _z = terrace_df['Elevation'].values
-        _X = terrace_df['X'].values
-        _Y = terrace_df['Y'].values
+        _terrace_subset = (terrace_df.TerraceID.values == terraceID)
+        _x = terrace_df['DistAlongBaseline'].values[_terrace_subset]
+        _y = terrace_df['DistToBaseline'].values[_terrace_subset]
+        _z = terrace_df['Elevation'].values[_terrace_subset]
+        _X = terrace_df['X'].values[_terrace_subset]
+        _Y = terrace_df['Y'].values[_terrace_subset]
 
         # fit a plane to these points
         # form: Z = C[0]*X + C[1]*Y + C[2]
         _XY = np.vstack((_X, _Y, np.ones(len(_Y)))).transpose()
         C,_,_,_ = linalg.lstsq(_XY, _z)
-        # Get dip and dip direction
-        _dip_slope = (C[0]**2 + C[1]**2)**.5
-        _dip = np.arctan(_dip_slope)
 
-        # Dip orientation is +/- this (pos/neg, not approx.)
-        print C[0], _dip
-        _dip_orientation_pm = np.arccos(C[0] / _dip_slope)
-        # Test which solution (+/-) is required
-        _isplus = (np.round(_dip * np.cos(_dip_orientation_pm),6) == np.round(C[0],6))
-        #print _dip * np.cos(_dip_orientation_pm), C[0]
-        # + C[1] * np.sin(_dip_orientation_pm)
-        _sign = 2 * _isplus - 1
-        _dip_orientation = _sign * _dip_orientation_pm
-        # Test which direction, now that we have orientation
-        # Which goes downwards?
-        _slope = C[0] * np.cos(_dip_orientation) + C[1] * np.sin(_dip_orientation)
-        #_neg = C[0] * np.cos(-_dip_orientation) + C[1] * np.sin(-_dip_orientation)
-        _ispos = _slope > 0#np.abs(_pos) < 0 #> np.abs(_neg)
-        # Flip with np.pi if the slope is going up -- dips go downslope
-        _dip_direction = _dip_orientation + np.pi * _ispos
-        # * (_ispos == 0)
-        # Test for dip direction -- this is like a difference, except first
-        # point is the origin
-        #_dip_direction_sign = np.sign( C[0] * np.cos(_dip_orientation) + C[1] * np.sin(_dip_orientation) )
-        #_dip_direction = _dip_direction_sign * _dip_orientation
-        #_dip_direction = (np.pi * (_dip_orientation < 0)) + _dip_orientation
+        # going to get the dip and dip direction using the unit normal vector
+        # to the plane.
+        n_vec = np.array([C[0],C[1],C[2]])
+        # n vector projected onto the xy plane (multiply n_vec by (1,1,0))
+        n_xy = np.array([C[0],C[1],0])
 
-        fig = plt.figure()
-        ax = fig.add_subplot(111, projection='3d')
-        #ax.scatter(_X, _Y, _z, c='blue', depthshade=True)
-        _x0, _y0, _z0 = np.mean(_X), np.mean(_Y), np.mean(_z)
-        _u0, _v0, _w0 = np.cos(_dip_direction), np.sin(_dip_direction), -_dip_slope
-        #_u0, _v0, _w0 = -np.cos(_dip_direction), -np.sin(_dip_direction), -_dip
-        #_u0, _v0, _w0 = C[0]/-_dip, C[1]/-_dip, -_dip
-        ax.quiver(_x0, _y0, _z0, _u0, _v0, _w0, length=50, arrow_length_ratio=.05, edgecolor='black', linewidth=4)
-        surf_xy = np.meshgrid( np.linspace(np.min(_X), np.max(_X), 20),
-        np.linspace(np.min(_Y), np.max(_Y), 20))
-        surf_z = C[0] * surf_xy[0] + C[1] * surf_xy[1] + C[2]
-        ax.plot_wireframe(surf_xy[0], surf_xy[1], surf_z, facecolors='k', alpha=1)
-        plt.title(terraceID)
+        print n_vec
+
+        # now get the dip = angle between n_vec and n_xy. angle between 2 vectors:
+        # cos theta = (alpha . beta) / (|alpha| |beta|)
+        # This gives the dip in radians
+        dip = math.acos((np.dot(n_vec,n_xy))/(np.linalg.norm(n_vec)*np.linalg.norm(n_xy)))
+        # convert to degrees
+        dip = 90 - math.degrees(dip)
+
+        # get the dip direction = angle between n_proj and the due north vector y = (0,1,0)
+        y_vec = np.array([0,1,0])
+        dip_dir = math.acos((np.dot(n_xy,y_vec))/(np.linalg.norm(n_xy)*np.linalg.norm(y_vec)))
+        dip_dir = math.degrees(dip_dir)
+
+        print ("Dip", dip)
+        print ("Dip direction", dip_dir)
+
+        # fig = plt.figure()
+        # ax = fig.add_subplot(111, projection='3d')
+        # #ax.scatter(_X, _Y, _z, c='blue', depthshade=True)
+        # _x0, _y0, _z0 = np.mean(_X), np.mean(_Y), np.mean(_z)
+        # _u0, _v0, _w0 = np.cos(_dip_direction), np.sin(_dip_direction), -_dip_slope
+        # #_u0, _v0, _w0 = -np.cos(_dip_direction), -np.sin(_dip_direction), -_dip
+        # #_u0, _v0, _w0 = C[0]/-_dip, C[1]/-_dip, -_dip
+        # ax.quiver(_x0, _y0, _z0, _u0, _v0, _w0, length=50, arrow_length_ratio=.05, edgecolor='black', linewidth=4)
+        # surf_xy = np.meshgrid( np.linspace(np.min(_X), np.max(_X), 20),
+        # np.linspace(np.min(_Y), np.max(_Y), 20))
+        # surf_z = C[0] * surf_xy[0] + C[1] * surf_xy[1] + C[2]
+        # ax.plot_wireframe(surf_xy[0], surf_xy[1], surf_z, facecolors='k', alpha=1)
+        # plt.title(terraceID)
 
 
 

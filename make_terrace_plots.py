@@ -26,8 +26,9 @@ def main(argv):
     parser.add_argument("-fname", "--fname_prefix", type=str, help="The prefix of your DEM WITHOUT EXTENSION!!! This must be supplied or you will get an error.")
 
     # What sort of analyses you want to do
-    parser.add_argument("-LP", "--long_profiler", type=bool, default=True, help="If this is true, I'll make plots of the terrace long profiles (Default = true)")
+    parser.add_argument("-LP", "--long_profiler", type=bool, default=False, help="If this is true, I'll make plots of the terrace long profiles (Default = true)")
     parser.add_argument("-PR", "--plot_rasters", type=bool, default=False, help="If this is true, I'll make raster plots of the terrace locations (Default=false)")
+    parser.add_argument("-dips", "--dips", type=bool,default=False, help="If this is true, I'll calculate the dip and dip direction of each terrace.")
 
     # These control the format of your figures
     parser.add_argument("-fmt", "--FigFormat", type=str, default='png', help="Set the figure format for the plots. Default is png")
@@ -55,6 +56,8 @@ def main(argv):
     if args.plot_rasters:
         TerracePlotter.MakeRasterPlotTerraceIDs(this_dir, args.fname_prefix, args.FigFormat, args.size_format)
         TerracePlotter.MakeRasterPlotTerraceElev(this_dir, args.fname_prefix, args.FigFormat, args.size_format)
+    if args.dips:
+        TerracePlotter.get_terrace_dip_and_dipdir(this_dir,args.fname_prefix)
 
 #=============================================================================
 # This is just a welcome screen that is displayed if no arguments are provided.
