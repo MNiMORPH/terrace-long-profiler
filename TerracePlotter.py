@@ -182,10 +182,10 @@ def get_terrace_dip_and_dipdir(DataDirectory, fname_prefix, min_size=5000):
 
         # fig = plt.figure()
         # ax = fig.add_subplot(111, projection='3d')
-        # #ax.scatter(_X, _Y, _z, c='blue', depthshade=True)
-        # _x0, _y0, _z0 = np.mean(_X), np.mean(_Y), np.mean(_z)
-        # _u0, _v0, _w0 = a, b, -dip
-        # ax.quiver(_x0, _y0, _z0, _u0, _v0, _w0, length=50, arrow_length_ratio=.05, edgecolor='black', linewidth=4)
+        # ax.scatter(_X, _Y, _z, c='blue', depthshade=True)
+        # # _x0, _y0, _z0 = np.mean(_X), np.mean(_Y), np.mean(_z)
+        # # _u0, _v0, _w0 = np.cos(dip_dir), np.sin(dip_dir), 324
+        # # ax.quiver(_x0, _y0, _z0, _u0, _v0, _w0, length=10, arrow_length_ratio=.05, edgecolor='black', linewidth=0.1)
         # surf_xy = np.meshgrid( np.linspace(np.min(_X), np.max(_X), 20),
         # np.linspace(np.min(_Y), np.max(_Y), 20))
         # surf_z = C[0] * surf_xy[0] + C[1] * surf_xy[1] + C[2]
