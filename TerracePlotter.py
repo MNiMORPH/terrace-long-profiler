@@ -117,6 +117,7 @@ def get_terrace_dip_and_dipdir(terrace_df):
 
     dips = []
     dip_dirs = []
+    strikes = []
     XbarTerraces = []
     YbarTerraces = []
 
@@ -174,13 +175,14 @@ def get_terrace_dip_and_dipdir(terrace_df):
 
         dips.append(dip)
         dip_dirs.append(dip_dir)
+        strikes.append(strike)
 
         # get the mean x and y for plotting
         XbarTerraces.append(np.mean(_X))
         YbarTerraces.append(np.mean(_Y))
 
-    outarray = np.vstack((XbarTerraces, YbarTerraces, dips, dip_dirs)).transpose()
-    _column_names = ('X', 'Y', 'dip', 'dip_azimuth')
+    outarray = np.vstack((XbarTerraces, YbarTerraces, dips, dip_dirs, strikes)).transpose()
+    _column_names = ('X', 'Y', 'dip', 'dip_azimuth', 'strike')
     _index = np.arange(len(dips))+1
     output_pd = pd.DataFrame(data = outarray, index=_index, columns=_column_names)
     # output_pd.to_csv(DataDirectory+fname_prefix+'_Dip_DipDirection.csv')
@@ -559,7 +561,8 @@ def MakeRasterPlotTerraceDips(DataDirectory,fname_prefix,min_size=5000,FigFormat
     MF.add_drape_image(TerraceElevName, DataDirectory, colourmap = terrace_cmap, colorbarlabel="Elevation above channel (m)", alpha=0.8)
 
     # add arrows oriented in the direction of dip. We might want to colour these by the dip angle?
-    MF.add_arrows_from_points(terrace_dips,azimuth_header='dip_azimuth', arrow_length=100)
+    # MF.add_arrows_from_points(terrace_dips,azimuth_header='dip_azimuth', arrow_length=100)
+    MF.add_strike_and_dip_symbols(terrace_dips,symbol_length=100,linewidth=0.5)
 
 
     ImageName = DataDirectory+fname_prefix+'_terrace_dips_raster_plot.'+FigFormat
