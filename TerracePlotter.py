@@ -93,18 +93,17 @@ def filter_terraces(terrace_df,min_size=5000, max_size=1000000):
 
     return terrace_df
 
-def get_terrace_dip_and_dipdir(DataDirectory, fname_prefix, min_size=5000):
+def get_terrace_dip_and_dipdir(terrace_df):
     """
     This function takes the initial terrace dataframe and calculates the dip and
     strike of the terrace surfaces. Fits a polynomial surface to the distribution
-    of terrace elevations and then gets the strike and dip of this surface.
+    of terrace elevations and then gets the dip and dip directions of this surface.
 
     Args:
         terrace_df: pandas dataframe with the terrace info
-        min_size (int): the minimum number of pixels for a terrace. Any smaller ones will be excluded.
 
     Returns:
-        dataframe with filtered terrace info.
+        dataframe with terrace dip and dip directions
 
     Author: AW and FJC
     """
@@ -112,10 +111,7 @@ def get_terrace_dip_and_dipdir(DataDirectory, fname_prefix, min_size=5000):
     import math
     from mpl_toolkits.mplot3d import Axes3D
 
-    terrace_df = read_terrace_csv(DataDirectory,fname_prefix)
-
-    # filter the terraces to remove ones that are too small
-    filter_terraces(terrace_df,min_size)
+    # get the unique terrace IDs
     terraceIDs = terrace_df.TerraceID.unique()
     print terraceIDs
 
@@ -187,8 +183,8 @@ def get_terrace_dip_and_dipdir(DataDirectory, fname_prefix, min_size=5000):
     _column_names = ('X', 'Y', 'dip', 'dip_azimuth')
     _index = np.arange(len(dips))+1
     output_pd = pd.DataFrame(data = outarray, index=_index, columns=_column_names)
-    output_pd.to_csv(DataDirectory+fname_prefix+'_Dip_DipDirection.csv')
-
+    # output_pd.to_csv(DataDirectory+fname_prefix+'_Dip_DipDirection.csv')
+    return output_pd
 
 def get_terrace_areas(terrace_df, min_size=5000):
     """
@@ -490,4 +486,81 @@ def MakeRasterPlotTerraceElev(DataDirectory,fname_prefix, FigFormat='png', size_
     MF.add_drape_image(TerraceElevName, DataDirectory, colourmap = terrace_cmap, colorbarlabel="Elevation above channel (m)", alpha=0.8)
 
     ImageName = DataDirectory+fname_prefix+'_terrace_elev_raster_plot.'+FigFormat
+    MF.save_fig(fig_width_inches = fig_width_inches, FigFileName = ImageName, FigFormat=FigFormat, Fig_dpi = 300) # Save the figure
+
+def MakeRasterPlotTerraceDips(DataDirectory,fname_prefix,min_size=5000,FigFormat='png',size_format='ESURF'):
+    """
+    This function makes a raster plot of terrace locations with arrows showing the terrace
+    dip and dip directions.
+    Dip and dip direction are calculated by fitting a plane to each terrace using least-squares
+    regression.
+
+    Args:
+        DataDirectory (str): the data directory
+        fname_prefix (str): the name of the DEM without extension.
+        min_size (int): minimum number of pixels for a terrace, smaller ones will be removed
+        FigFormat (str): the figure format, default='png'
+        size_format (str): Can be "big" (16 inches wide), "geomorphology" (6.25 inches wide), or "ESURF" (4.92 inches wide) (defualt esurf).
+
+    Returns:
+        plot of terrace locations and dip/dip directions
+
+    Author: FJC
+
+    """
+    from LSDMapFigure.PlottingRaster import BaseRaster
+    from LSDMapFigure.PlottingRaster import MapFigure
+
+    # Set up fonts for plots
+    label_size = 10
+    rcParams['font.family'] = 'sans-serif'
+    rcParams['font.sans-serif'] = ['arial']
+    rcParams['font.size'] = label_size
+
+    # make a figure
+    if size_format == "geomorphology":
+        #fig = plt.figure(1, facecolor='white',figsize=(6.25,3.5))
+        fig_width_inches=6.25
+        #l_pad = -40
+    elif size_format == "big":
+        #fig = plt.figure(1, facecolor='white',figsize=(16,9))
+        fig_width_inches=16
+        #l_pad = -50
+    else:
+        fig_width_inches = 4.92126
+        #fig = plt.figure(1, facecolor='white',figsize=(4.92126,3.2))
+        #l_pad = -35
+
+    # going to make the terrace plots - need to have bil extensions.
+    print("I'm going to make a raster plot of terrace elevations. Your topographic data must be in ENVI bil format or I'll break!!")
+
+    # get the rasters
+    raster_ext = '.bil'
+    BackgroundRasterName = fname_prefix+raster_ext
+    HillshadeName = fname_prefix+'_hs'+raster_ext
+    TerraceElevName = fname_prefix+'_terrace_relief_final'+raster_ext
+
+    # get the terrace csv
+    terraces = read_terrace_csv(DataDirectory,fname_prefix)
+    filter_terraces(terraces)
+
+    # get the terrace IDs
+    terraceIDs = terraces.TerraceID.unique()
+    n_colours=len(terraceIDs)
+
+    # get the terrace dip and dip dirs
+    terrace_dips = get_terrace_dip_and_dipdir(terraces)
+
+    # create the map figure
+    MF = MapFigure(HillshadeName, DataDirectory, coord_type='UTM_km', colourbar_location='right')
+    # add the terrace drape
+    terrace_cmap = plt.cm.Reds
+    #terrace_cmap = colours.cmap_discretize(n_colours,terrace_cmap)
+    MF.add_drape_image(TerraceElevName, DataDirectory, colourmap = terrace_cmap, colorbarlabel="Elevation above channel (m)", alpha=0.8)
+
+    # add arrows oriented in the direction of dip. We might want to colour these by the dip angle?
+    MF.add_arrows_from_points(terrace_dips,azimuth_header='dip_azimuth', arrow_length=100)
+
+
+    ImageName = DataDirectory+fname_prefix+'_terrace_dips_raster_plot.'+FigFormat
     MF.save_fig(fig_width_inches = fig_width_inches, FigFileName = ImageName, FigFormat=FigFormat, Fig_dpi = 300) # Save the figure
