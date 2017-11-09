@@ -13,6 +13,7 @@ from matplotlib import pyplot as plt
 from LSDPlottingTools import colours
 import matplotlib.cm as cm
 from matplotlib import rcParams
+from LSDPlottingTools import LSDMap_GDALIO as IO
 
 #---------------------------------------------------------------------------------------------#
 # CSV READERS
@@ -188,22 +189,37 @@ def get_terrace_dip_and_dipdir(terrace_df):
     # output_pd.to_csv(DataDirectory+fname_prefix+'_Dip_DipDirection.csv')
     return output_pd
 
-def get_terrace_areas(terrace_df, min_size=5000):
+def get_terrace_areas(terrace_df, fname_prefix):
     """
     This function takes the initial terrace dataframe and calculates the
     area of each terrace.
 
     Args:
         terrace_df: pandas dataframe with the terrace info
-
+        fname_prefix: name of the DEM (to get data res)
 
     Returns:
         dict where key is the terrace ID and value is the terrace area in m^2
 
     Author: FJC
     """
-    # filter the terraces to remove ones that are too small
+    # get unique IDs
+    terraceIDs = terrace_df.terraceID.unique()
 
+    area_dict = {}
+
+    for terraceID in terraceIDs:
+        # get the n rows with this ID
+        masked_df = terrace_df[terrace_df['terraceID'] == terraceID]
+        n_pixels = len(masked_df.index)
+
+        # get the data resolution of the DEM
+        Cell_area = IO.GetPixelArea(fname_prefix)
+        terrace_area = n_pixels * Cell_area
+
+        area_dict[terraceID] = terrace_area
+
+    return area_dict
 
 #---------------------------------------------------------------------------------------------#
 # XZ PLOTS
