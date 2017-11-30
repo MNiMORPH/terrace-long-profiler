@@ -16,6 +16,52 @@ from matplotlib import rcParams
 from LSDPlottingTools import LSDMap_GDALIO as IO
 
 #---------------------------------------------------------------------------------------------#
+# Set up figure
+#---------------------------------------------------------------------------------------------#
+def CreateFigure(FigSizeFormat="default", AspectRatio=16./9.):
+    """
+    This function creates a default matplotlib figure object
+
+    Args:
+        FigSizeFormat: the figure size format according to journal for which the figure is intended
+            values are geomorphology,ESURF, ESPL, EPSL, JGR, big
+            default is ESURF
+
+        AspectRatio: The shape of the figure determined by the aspect ratio, default is 16./9.
+
+    Returns:
+        matplotlib figure object
+
+    Author: FJC
+    """
+    # set figure sizes (in inches) based on format
+    if FigSizeFormat == "geomorphology":
+        FigWidth_Inches = 6.25
+    elif FigSizeFormat == "big":
+        FigWidth_Inches = 16
+    elif FigSizeFormat == "ESURF":
+        FigWidth_Inches = 4.92
+    elif FigSizeFormat == "ESPL":
+        FigWidth_Inches = 7.08
+    elif FigSizeFormat == "EPSL":
+        FigWidth_Inches = 7.48
+    elif FigSizeFormat == "JGR":
+        FigWidth_Inches = 6.6
+
+    else:
+        FigWidth_Inches = 4.92126
+
+    # Set up fonts for plots
+    rcParams['font.family'] = 'sans-serif'
+    rcParams['font.sans-serif'] = ['arial']
+    rcParams['font.size'] = 10
+    #rcParams['text.usetex'] = True
+
+    Fig = plt.figure(figsize=(FigWidth_Inches,FigWidth_Inches/AspectRatio))
+
+    return Fig
+
+#---------------------------------------------------------------------------------------------#
 # CSV READERS
 # Functions to read in the csv files
 #---------------------------------------------------------------------------------------------#
@@ -93,6 +139,27 @@ def filter_terraces(terrace_df,min_size=5000, max_size=1000000):
             terrace_df = terrace_df[terrace_df['TerraceID'] != i]
 
     return terrace_df
+
+def write_dip_and_dipdir_to_csv(DataDirectory,fname_prefix):
+    """
+    Wrapper for dip and dipdir function
+
+    Args:
+        DataDirectory (str): the data directory
+        fname_prefix (str): name of the DEM
+
+    Author: FJC
+    """
+    # get the terrace csv
+    terraces = read_terrace_csv(DataDirectory,fname_prefix)
+    filter_terraces(terraces)
+
+    # get the terrace dip and dip dirs
+    terrace_dips = get_terrace_dip_and_dipdir(terraces)
+
+    # write to csv
+    terrace_dips.to_csv(DataDirectory+fname_prefix+'_Dip_DipDirection.csv')
+
 
 def get_terrace_dip_and_dipdir(terrace_df):
     """
@@ -186,7 +253,6 @@ def get_terrace_dip_and_dipdir(terrace_df):
     _column_names = ('X', 'Y', 'dip', 'dip_azimuth', 'strike')
     _index = np.arange(len(dips))+1
     output_pd = pd.DataFrame(data = outarray, index=_index, columns=_column_names)
-    # output_pd.to_csv(DataDirectory+fname_prefix+'_Dip_DipDirection.csv')
     return output_pd
 
 def get_terrace_areas(terrace_df, fname_prefix):
@@ -315,9 +381,72 @@ def long_profiler(DataDirectory,fname_prefix, min_size=5000, FigFormat='png', si
     colours.fix_colourbar_ticks(cbar,len(newIDs),cbar_type=int,min_value=min(newIDs),max_value=max(newIDs),labels=newIDs)
 
     # set axis params and save
-    ax.set_xlabel('Distance upstream (m)')
+    ax.set_xlabel('Distance downstream (m)')
     ax.set_ylabel('Elevation (m)')
     plt.savefig(DataDirectory+fname_prefix+'_terrace_plot.'+FigFormat,format=FigFormat,dpi=300)
+    plt.clf()
+
+def long_profiler_dist(DataDirectory,fname_prefix, min_size=5000, FigFormat='png', size_format='ESURF'):
+    """
+    Make long profile plot where terrace points are binned by
+    distance along the channel
+    """
+    # make a figure
+    fig = CreateFigure()
+    ax = plt.subplot(111)
+
+    # read in the terrace csv
+    terraces = read_terrace_csv(DataDirectory,fname_prefix)
+    filter_terraces(terraces, min_size)
+
+    # read in the baseline channel csv
+    lp = read_channel_csv(DataDirectory,fname_prefix)
+    lp = lp[lp['Elevation'] != -9999]
+
+    xTerraces = np.array(terraces['DistAlongBaseline'])
+    yTerraces = np.array(terraces['DistToBaseline'])
+    zTerraces = np.array(terraces['Elevation'])
+
+    MaximumDistance = xTerraces.max()
+    # change the distance so it goes from upstream --> downstream
+    for x in xTerraces:
+
+
+    # now bin by distance along the baseline
+    bins = np.unique(newXTerraces)
+    nbins = len(np.unique(newXTerraces))
+    n, _ = np.histogram(newXTerraces, bins=nbins)
+    print "HELLO"
+    print _
+    s_zTerraces, _ = np.histogram(newXTerraces, bins=nbins, weights=zTerraces)
+    s_zTerraces2, _ = np.histogram(newXTerraces, bins=nbins, weights=zTerraces*zTerraces)
+    mean = s_zTerraces / n
+    std = np.sqrt(s_zTerraces2/n - mean*mean)
+
+    # invert to get distance from outlet
+    MS_DistAlongBaseline = np.array(lp['DistAlongBaseline'])[::-1]
+    MS_Elevation = np.array(lp['Elevation'])
+    Terrace_Elevation = mean
+
+    print MS_DistAlongBaseline
+    print MS_Elevation
+    print Terrace_Elevation
+
+
+    # plot the main stem channel in black
+    plt.plot(MS_DistAlongBaseline/1000,MS_Elevation, c='k', lw=1)
+    plt.scatter((_/1000)[:-1], Terrace_Elevation, s=1)
+
+    # set axis params and save
+    ax.set_xlabel('Distance from outlet (km)')
+    ax.set_ylabel('Elevation (m)')
+    ax.set_xlim(0,50)
+    plt.tight_layout()
+    plt.savefig(DataDirectory+fname_prefix+'_terrace_plot_binned.'+FigFormat,format=FigFormat,dpi=300)
+
+    plt.clf()
+
+
 
 #---------------------------------------------------------------------------------------------#
 # RASTER PLOTS

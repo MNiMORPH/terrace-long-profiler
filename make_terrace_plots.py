@@ -53,12 +53,13 @@ def main(argv):
 
     if args.long_profiler:
         TerracePlotter.long_profiler(this_dir, args.fname_prefix)
+        TerracePlotter.long_profiler_dist(this_dir, args.fname_prefix)
     if args.plot_rasters:
         TerracePlotter.MakeRasterPlotTerraceIDs(this_dir, args.fname_prefix, args.FigFormat, args.size_format)
         TerracePlotter.MakeRasterPlotTerraceElev(this_dir, args.fname_prefix, args.FigFormat, args.size_format)
     if args.dips:
-        # TerracePlotter.get_terrace_dip_and_dipdir(this_dir,args.fname_prefix)
-        TerracePlotter.MakeRasterPlotTerraceDips(this_dir,args.fname_prefix,FigFormat=args.FigFormat,size_format=args.size_format)
+        TerracePlotter.write_dip_and_dipdir_to_csv(this_dir,args.fname_prefix)
+        # TerracePlotter.MakeRasterPlotTerraceDips(this_dir,args.fname_prefix,FigFormat=args.FigFormat,size_format=args.size_format)
 
 #=============================================================================
 # This is just a welcome screen that is displayed if no arguments are provided.
