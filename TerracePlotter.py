@@ -403,44 +403,44 @@ def long_profiler_dist(DataDirectory,fname_prefix, min_size=5000, FigFormat='png
     lp = read_channel_csv(DataDirectory,fname_prefix)
     lp = lp[lp['Elevation'] != -9999]
 
-    xTerraces = np.array(terraces['DistAlongBaseline'])
-    yTerraces = np.array(terraces['DistToBaseline'])
-    zTerraces = np.array(terraces['Elevation'])
+    # get the distance from outlet along the baseline for each terrace pixels
+    new_terraces = terraces.merge(lp, left_on = "BaselineNode", right_on = "node")
+    print new_terraces
+
+    xTerraces = np.array(new_terraces['DistFromOutlet'])
+    yTerraces = np.array(new_terraces['DistToBaseline'])
+    zTerraces = np.array(new_terraces['Elevation_x'])
 
     MaximumDistance = xTerraces.max()
-    # change the distance so it goes from upstream --> downstream
-    for x in xTerraces:
-
 
     # now bin by distance along the baseline
-    bins = np.unique(newXTerraces)
-    nbins = len(np.unique(newXTerraces))
-    n, _ = np.histogram(newXTerraces, bins=nbins)
-    print "HELLO"
-    print _
-    s_zTerraces, _ = np.histogram(newXTerraces, bins=nbins, weights=zTerraces)
-    s_zTerraces2, _ = np.histogram(newXTerraces, bins=nbins, weights=zTerraces*zTerraces)
+    bins = np.unique(xTerraces)
+    nbins = len(np.unique(xTerraces))
+    n, _ = np.histogram(xTerraces, bins=nbins)
+    s_zTerraces, _ = np.histogram(xTerraces, bins=nbins, weights=zTerraces)
+    s_zTerraces2, _ = np.histogram(xTerraces, bins=nbins, weights=zTerraces*zTerraces)
     mean = s_zTerraces / n
     std = np.sqrt(s_zTerraces2/n - mean*mean)
 
-    # invert to get distance from outlet
-    MS_DistAlongBaseline = np.array(lp['DistAlongBaseline'])[::-1]
+    # # invert to get distance from outlet
+    # MS_DistAlongBaseline = np.array(lp['DistAlongBaseline'])[::-1]
+    MS_Dist = np.array(lp['DistFromOutlet'])
     MS_Elevation = np.array(lp['Elevation'])
     Terrace_Elevation = mean
 
-    print MS_DistAlongBaseline
+    print MS_Dist
     print MS_Elevation
     print Terrace_Elevation
 
 
     # plot the main stem channel in black
-    plt.plot(MS_DistAlongBaseline/1000,MS_Elevation, c='k', lw=1)
-    plt.scatter((_/1000)[:-1], Terrace_Elevation, s=1)
+    plt.plot(MS_Dist/1000,MS_Elevation, c='k', lw=1)
+    plt.scatter((_/1000)[:-1], Terrace_Elevation, s=1, zorder=2, c='r')
 
     # set axis params and save
     ax.set_xlabel('Distance from outlet (km)')
     ax.set_ylabel('Elevation (m)')
-    ax.set_xlim(0,50)
+    #ax.set_xlim(0,50)
     plt.tight_layout()
     plt.savefig(DataDirectory+fname_prefix+'_terrace_plot_binned.'+FigFormat,format=FigFormat,dpi=300)
 
