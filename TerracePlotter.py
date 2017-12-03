@@ -14,6 +14,8 @@ from LSDPlottingTools import colours
 import matplotlib.cm as cm
 from matplotlib import rcParams
 from LSDPlottingTools import LSDMap_GDALIO as IO
+from shapely.geometry import shape, Polygon
+import fiona
 
 #---------------------------------------------------------------------------------------------#
 # Set up figure
@@ -107,6 +109,28 @@ def read_channel_csv(DataDirectory,fname_prefix):
     df = pd.read_csv(fname)
 
     return df
+
+def read_terrace_shapefile(DataDirectory, shapefile_name):
+    """
+    This function reads in a shapefile of digitised terraces
+    using shapely and fiona
+
+    Args:
+        DataDirectory (str): the data directory
+        shapefile_name (str): the name of the shapefile
+
+    Returns: shapely polygons with terraces
+
+    Author: FJC
+    """
+    Polygons = {}
+    with fiona.open(DataDirectory+shapefile_name, 'r') as input:
+        for f in input:
+            this_shape = Polygon(shape(f['geometry']))
+            this_id = f['properties']['id']
+            Polygons[this_id] = this_shape
+
+    return polygons
 
 #---------------------------------------------------------------------------------------------#
 # ANALYSIS FUNCTIONS
@@ -435,7 +459,7 @@ def long_profiler_dist(DataDirectory,fname_prefix, min_size=5000, FigFormat='png
 
     # plot the main stem channel in black
     plt.plot(MS_Dist/1000,MS_Elevation, c='k', lw=1)
-    plt.scatter((_/1000)[:-1], Terrace_Elevation, s=1, zorder=2, c='r')
+    plt.scatter((_/1000)[:-1], Terrace_Elevation, s=2, zorder=2, c='r')
 
     # set axis params and save
     ax.set_xlabel('Distance from outlet (km)')
