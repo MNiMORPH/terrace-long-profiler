@@ -29,6 +29,8 @@ def main(argv):
     parser.add_argument("-LP", "--long_profiler", type=bool, default=False, help="If this is true, I'll make plots of the terrace long profiles (Default = true)")
     parser.add_argument("-PR", "--plot_rasters", type=bool, default=False, help="If this is true, I'll make raster plots of the terrace locations (Default=false)")
     parser.add_argument("-dips", "--dips", type=bool,default=False, help="If this is true, I'll calculate the dip and dip direction of each terrace.")
+    parser.add_argument("-DT", "--digitised_terraces", type=bool,default=False, help="If this is true I'll filter the terrace points using a shapefile of digitised terraces.")
+    parser.add_argument("-shp", "--shapefile_name", type=str, default=None, help="The shapefile of digitised terraces. Must be supplied if you want to filter terraces by shapefile, obvz.")
 
     # These control the format of your figures
     parser.add_argument("-fmt", "--FigFormat", type=str, default='png', help="Set the figure format for the plots. Default is png")
@@ -51,9 +53,14 @@ def main(argv):
         print("WARNING! You haven't supplied your DEM name. Please specify this with the flag '-fname'")
         sys.exit()
 
+    shapefile_name = "Mattole_terraces.shp"
+    TerracePlotter.SelectTerracesFromShapefile(this_dir, shapefile_name, args.fname_prefix)
+
     if args.long_profiler:
-        TerracePlotter.long_profiler(this_dir, args.fname_prefix)
-        TerracePlotter.long_profiler_dist(this_dir, args.fname_prefix)
+        if not args.digitised_terraces:
+            TerracePlotter.long_profiler_dist(this_dir, args.fname_prefix)
+        else:
+            TerracePlotter.long_profiler_dist(this_dir, args.fname_prefix, digitised_terraces=True, shapefile_name = args.shapefile_name)
     if args.plot_rasters:
         TerracePlotter.MakeRasterPlotTerraceIDs(this_dir, args.fname_prefix, args.FigFormat, args.size_format)
         TerracePlotter.MakeRasterPlotTerraceElev(this_dir, args.fname_prefix, args.FigFormat, args.size_format)

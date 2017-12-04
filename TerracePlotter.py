@@ -14,7 +14,7 @@ from LSDPlottingTools import colours
 import matplotlib.cm as cm
 from matplotlib import rcParams
 from LSDPlottingTools import LSDMap_GDALIO as IO
-from shapely.geometry import shape, Polygon
+from shapely.geometry import shape, Polygon, Point
 import fiona
 
 #---------------------------------------------------------------------------------------------#
@@ -130,12 +130,53 @@ def read_terrace_shapefile(DataDirectory, shapefile_name):
             this_id = f['properties']['id']
             Polygons[this_id] = this_shape
 
-    return polygons
+    return Polygons
 
 #---------------------------------------------------------------------------------------------#
 # ANALYSIS FUNCTIONS
 # Functions to analyse the terrace info
 #---------------------------------------------------------------------------------------------#
+
+def SelectTerracesFromShapefile(DataDirectory,shapefile_name,fname_prefix):
+    """
+    This function takes in a shapefile of digitised terraces and
+    uses it to filter the terrace DF.  Only pixels within each
+    shapefile are kept, and they are assigned a new ID based on the
+    ID of the shapefile polygons.
+
+    Args:
+        DataDirectory (str): the data directory
+        shapefile_name (str): the name of the shapefile
+        fname_prefix (str): prefix of the DEM
+
+    Returns: terrace df filtered by the digitised terraces
+
+    Author: FJC
+    """
+    # first get the terrace df
+    terrace_df = read_terrace_csv(DataDirectory,fname_prefix)
+
+    # now get the shapefile with the digitised terraces
+    digitised_terraces = read_terrace_shapefile(DataDirectory,shapefile_name)
+
+    # for each point in the df, need to check if it is in one of the polygons. This will probably be slow.
+
+    # set up the new terrace df
+    new_df = pd.DataFrame()
+
+    print "Filtering points by shapefile, this might take a while..."
+
+    for idx, row in terrace_df.iterrows():
+        this_point = Point(row['X'], row['Y'])
+        #print this_point
+        # check if this point is in one of the polygons
+        for id, polygon in digitised_terraces.iteritems():
+            if polygon.contains(this_point):
+                # this point is within this terrace, keep it and assign a new ID number
+                row['TerraceID'] = id
+                new_df = new_df.append(row)
+
+    return new_df
 
 def filter_terraces(terrace_df,min_size=5000, max_size=1000000):
     """
@@ -410,7 +451,7 @@ def long_profiler(DataDirectory,fname_prefix, min_size=5000, FigFormat='png', si
     plt.savefig(DataDirectory+fname_prefix+'_terrace_plot.'+FigFormat,format=FigFormat,dpi=300)
     plt.clf()
 
-def long_profiler_dist(DataDirectory,fname_prefix, min_size=5000, FigFormat='png', size_format='ESURF'):
+def long_profiler_dist(DataDirectory,fname_prefix, min_size=5000, FigFormat='png', size_format='ESURF', digitised_terraces=False, shapefile_name=None):
     """
     Make long profile plot where terrace points are binned by
     distance along the channel
@@ -421,6 +462,8 @@ def long_profiler_dist(DataDirectory,fname_prefix, min_size=5000, FigFormat='png
 
     # read in the terrace csv
     terraces = read_terrace_csv(DataDirectory,fname_prefix)
+    if digitised_terraces:
+        terraces = SelectTerracesFromShapefile(DataDirectory,shapefile_name,fname_prefix)
     filter_terraces(terraces, min_size)
 
     # read in the baseline channel csv
