@@ -53,9 +53,6 @@ def main(argv):
         print("WARNING! You haven't supplied your DEM name. Please specify this with the flag '-fname'")
         sys.exit()
 
-    shapefile_name = "Mattole_terraces.shp"
-    TerracePlotter.SelectTerracesFromShapefile(this_dir, shapefile_name, args.fname_prefix)
-
     if args.long_profiler:
         if not args.digitised_terraces:
             TerracePlotter.long_profiler_dist(this_dir, args.fname_prefix)
@@ -65,7 +62,7 @@ def main(argv):
         TerracePlotter.MakeRasterPlotTerraceIDs(this_dir, args.fname_prefix, args.FigFormat, args.size_format)
         TerracePlotter.MakeRasterPlotTerraceElev(this_dir, args.fname_prefix, args.FigFormat, args.size_format)
     if args.dips:
-        TerracePlotter.write_dip_and_dipdir_to_csv(this_dir,args.fname_prefix)
+        TerracePlotter.write_dip_and_dipdir_to_csv(this_dir,args.fname_prefix, args.digitised_terraces, args.shapefile_name)
         # TerracePlotter.MakeRasterPlotTerraceDips(this_dir,args.fname_prefix,FigFormat=args.FigFormat,size_format=args.size_format)
 
 #=============================================================================

@@ -16,6 +16,7 @@ from matplotlib import rcParams
 from LSDPlottingTools import LSDMap_GDALIO as IO
 from shapely.geometry import shape, Polygon, Point
 import fiona
+import os
 
 #---------------------------------------------------------------------------------------------#
 # Set up figure
@@ -176,6 +177,10 @@ def SelectTerracesFromShapefile(DataDirectory,shapefile_name,fname_prefix):
                 row['TerraceID'] = id
                 new_df = new_df.append(row)
 
+    OutDF_name = "_terrace_info_shapefiles.csv"
+    OutDF_name = DataDirectory+fname_prefix+OutDF_name
+    new_df.to_csv(OutDF_name,index=False)
+
     return new_df
 
 def filter_terraces(terrace_df,min_size=5000, max_size=1000000):
@@ -205,19 +210,29 @@ def filter_terraces(terrace_df,min_size=5000, max_size=1000000):
 
     return terrace_df
 
-def write_dip_and_dipdir_to_csv(DataDirectory,fname_prefix):
+def write_dip_and_dipdir_to_csv(DataDirectory,fname_prefix, digitised_terraces=False, shapefile_name=None):
     """
     Wrapper for dip and dipdir function
 
     Args:
         DataDirectory (str): the data directory
         fname_prefix (str): name of the DEM
+        digitised_terraces (bool): boolean to use digitised terrace shapefile
+        shapefile_name (str): name of shapefile
 
     Author: FJC
     """
-    # get the terrace csv
+    # read in the terrace csv
     terraces = read_terrace_csv(DataDirectory,fname_prefix)
-    filter_terraces(terraces)
+    if digitised_terraces:
+        # check if you've already done the selection, if so just read in the csv
+        print "File name is", DataDirectory+fname_prefix+'_terrace_info_shapefiles.csv'
+        if os.path.isfile(DataDirectory+fname_prefix+'_terrace_info_shapefiles.csv'):
+            terraces = pd.read_csv(DataDirectory+fname_prefix+'_terrace_info_shapefiles.csv')
+        else:
+            terraces = SelectTerracesFromShapefile(DataDirectory,shapefile_name,fname_prefix)
+    else:
+        filter_terraces(terraces, min_size)
 
     # get the terrace dip and dip dirs
     terrace_dips = get_terrace_dip_and_dipdir(terraces)
@@ -463,8 +478,13 @@ def long_profiler_dist(DataDirectory,fname_prefix, min_size=5000, FigFormat='png
     # read in the terrace csv
     terraces = read_terrace_csv(DataDirectory,fname_prefix)
     if digitised_terraces:
-        terraces = SelectTerracesFromShapefile(DataDirectory,shapefile_name,fname_prefix)
-    filter_terraces(terraces, min_size)
+        # check if you've already done the selection, if so just read in the csv
+        if os.path.isfile(DataDirectory+fname_prefix+'_terrace_info_shapefiles.csv'):
+            terraces = pd.read_csv(DataDirectory+fname_prefix+'_terrace_info_shapefiles.csv')
+        else:
+            terraces = SelectTerracesFromShapefile(DataDirectory,shapefile_name,fname_prefix)
+    else:
+        filter_terraces(terraces, min_size)
 
     # read in the baseline channel csv
     lp = read_channel_csv(DataDirectory,fname_prefix)
@@ -507,7 +527,7 @@ def long_profiler_dist(DataDirectory,fname_prefix, min_size=5000, FigFormat='png
     # set axis params and save
     ax.set_xlabel('Distance from outlet (km)')
     ax.set_ylabel('Elevation (m)')
-    #ax.set_xlim(0,50)
+    ax.set_xlim(0,80)
     plt.tight_layout()
     plt.savefig(DataDirectory+fname_prefix+'_terrace_plot_binned.'+FigFormat,format=FigFormat,dpi=300)
 
