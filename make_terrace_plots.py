@@ -57,7 +57,8 @@ def main(argv):
         if not args.digitised_terraces:
             TerracePlotter.long_profiler_dist(this_dir, args.fname_prefix)
         else:
-            TerracePlotter.long_profiler_dist(this_dir, args.fname_prefix, digitised_terraces=True, shapefile_name = args.shapefile_name)
+            #TerracePlotter.long_profiler_dist(this_dir, args.fname_prefix, digitised_terraces=True, shapefile_name = args.shapefile_name)
+            long_profiler_centrelines(DataDirectory,fname_prefix,shapefile_name)
     if args.plot_rasters:
         TerracePlotter.MakeRasterPlotTerraceIDs(this_dir, args.fname_prefix, args.FigFormat, args.size_format)
         TerracePlotter.MakeRasterPlotTerraceElev(this_dir, args.fname_prefix, args.FigFormat, args.size_format)

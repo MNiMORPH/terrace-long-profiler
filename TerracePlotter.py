@@ -533,7 +533,27 @@ def long_profiler_dist(DataDirectory,fname_prefix, min_size=5000, FigFormat='png
 
     plt.clf()
 
+def long_profiler_centrelines(DataDirectory,fname_prefix, shapefile_name):
+    """
+    Function takes in the csv file of terrace centreline data
+    and plots as a long profile against the baseline channel.
 
+    Author: FJC
+    Will clean up after AGU
+    """
+    # make a figure
+    fig = CreateFigure()
+    ax = plt.subplot(111)
+
+    # read in the terrace csv
+    terraces = read_terrace_csv(DataDirectory,fname_prefix)
+
+    # read in the shapefile csv
+    centrelines = pd.to_csv(DataDirectory+shapefile_name)
+
+    # mask terrace df based on centrelines
+    terraces = terraces[terraces['X'] == centrelines['X'] and terraces['Y'] == centrelines['Y']]
+    print terraces
 
 #---------------------------------------------------------------------------------------------#
 # RASTER PLOTS
