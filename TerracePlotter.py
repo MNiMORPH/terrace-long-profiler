@@ -540,6 +540,8 @@ def long_profiler_centrelines(DataDirectory,fname_prefix, shapefile_name):
 
     Author: FJC
     Will clean up after AGU
+    FIONA - ALWAYS COMMIT YOUR CODE AND DON'T LEAVE IT ON COMPUTERS IN A DIFFERENT
+    CONTINENT!!!!!!!!!!
     """
     # make a figure
     fig = CreateFigure()
@@ -548,12 +550,13 @@ def long_profiler_centrelines(DataDirectory,fname_prefix, shapefile_name):
     # read in the terrace csv
     terraces = read_terrace_csv(DataDirectory,fname_prefix)
 
-    # read in the shapefile csv
-    centrelines = pd.to_csv(DataDirectory+shapefile_name)
+    # output the centreline shapefile as a CSV
+    centrelines = pd.read_csv(DataDirectory+shapefile_name)
+    print centrelines
 
     # mask terrace df based on centrelines
     terraces = terraces[terraces['X'] == centrelines['X'] and terraces['Y'] == centrelines['Y']]
-    print terraces
+    #print terraces
 
 #---------------------------------------------------------------------------------------------#
 # RASTER PLOTS

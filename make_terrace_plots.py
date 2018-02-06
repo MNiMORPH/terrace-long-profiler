@@ -22,7 +22,7 @@ def main(argv):
     parser = argparse.ArgumentParser()
 
     # The location of the data files
-    parser.add_argument("-dir", "--base_directory", type=str, help="The base directory with the m/n analysis. If this isn't defined I'll assume it's the same as the current directory.")
+    parser.add_argument("-dir", "--base_directory", type=str, help="The base directory with the terrace analysis. If this isn't defined I'll assume it's the same as the current directory.")
     parser.add_argument("-fname", "--fname_prefix", type=str, help="The prefix of your DEM WITHOUT EXTENSION!!! This must be supplied or you will get an error.")
 
     # What sort of analyses you want to do
@@ -58,7 +58,7 @@ def main(argv):
             TerracePlotter.long_profiler_dist(this_dir, args.fname_prefix)
         else:
             #TerracePlotter.long_profiler_dist(this_dir, args.fname_prefix, digitised_terraces=True, shapefile_name = args.shapefile_name)
-            long_profiler_centrelines(DataDirectory,fname_prefix,shapefile_name)
+            TerracePlotter.long_profiler_centrelines(DataDirectory,fname_prefix,shapefile_name)
     if args.plot_rasters:
         TerracePlotter.MakeRasterPlotTerraceIDs(this_dir, args.fname_prefix, args.FigFormat, args.size_format)
         TerracePlotter.MakeRasterPlotTerraceElev(this_dir, args.fname_prefix, args.FigFormat, args.size_format)
