@@ -634,8 +634,6 @@ def long_profiler_centrelines(DataDirectory,fname_prefix, shapefile_name, FigFor
     plt.tight_layout()
     plt.savefig(DataDirectory+fname_prefix+'_terrace_plot_centrelines.'+FigFormat,format=FigFormat,dpi=300)
 
-
-
 #---------------------------------------------------------------------------------------------#
 # RASTER PLOTS
 # Functions to make raster plots of terrace attributes
