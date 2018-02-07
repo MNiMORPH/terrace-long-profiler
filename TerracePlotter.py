@@ -14,7 +14,7 @@ from LSDPlottingTools import colours
 import matplotlib.cm as cm
 from matplotlib import rcParams
 from LSDPlottingTools import LSDMap_GDALIO as IO
-from shapely.geometry import shape, Polygon, Point
+from shapely.geometry import shape, Polygon, Point, LineString
 import fiona
 import os
 
@@ -133,6 +133,27 @@ def read_terrace_shapefile(DataDirectory, shapefile_name):
 
     return Polygons
 
+def read_terrace_centrelines(DataDirectory, shapefile_name):
+    """
+    This function reads in a shapefile of terrace centrelines
+    using shapely and fiona
+
+    Args:
+        DataDirectory (str): the data directory
+        shapefile_name (str): the name of the shapefile
+
+    Returns: shapely polygons with terraces
+
+    Author: FJC
+    """
+    Lines = {}
+    with fiona.open(DataDirectory+shapefile_name, 'r') as input:
+        for f in input:
+            this_line = LineString(shape(f['geometry']))
+            this_id = f['properties']['id']
+            Lines[this_id] = this_line
+    return Lines
+
 #---------------------------------------------------------------------------------------------#
 # ANALYSIS FUNCTIONS
 # Functions to analyse the terrace info
@@ -178,6 +199,48 @@ def SelectTerracesFromShapefile(DataDirectory,shapefile_name,fname_prefix):
                 new_df = new_df.append(row)
 
     OutDF_name = "_terrace_info_shapefiles.csv"
+    OutDF_name = DataDirectory+fname_prefix+OutDF_name
+    new_df.to_csv(OutDF_name,index=False)
+
+    return new_df
+
+def SelectTerracePointsFromCentrelines(DataDirectory,shapefile_name,fname_prefix, distance=2):
+    """
+    This function takes in a shapefile of digitised terrace centrelines and finds points within a certain distance of the line. Returns as a df.
+
+    Args:
+        DataDirectory (str): the data directory
+        shapefile_name (str): the name of the shapefile
+        fname_prefix (str): prefix of the DEM
+
+    Returns: terrace df filtered by the digitised terraces
+
+    Author: FJC
+    """
+    # first get the terrace df
+    terrace_df = read_terrace_csv(DataDirectory,fname_prefix)
+
+    # now get the shapefile with the digitised terraces
+    centrelines = read_terrace_centrelines(DataDirectory,shapefile_name)
+
+    # for each point in the df, need to check if it is in one of the polygons. This will probably be slow.
+
+    # set up the new terrace df
+    new_df = pd.DataFrame()
+
+    print "Filtering points by shapefile, this might take a while..."
+
+    for idx, row in terrace_df.iterrows():
+        this_point = Point(row['X'], row['Y'])
+        #print this_point
+        # check if this point is in one of the polygons
+        for id, line in centrelines.iteritems():
+            if line.distance(this_point) < distance:
+                # this point is within this terrace, keep it and assign a new ID number
+                row['TerraceID'] = id
+                new_df = new_df.append(row)
+
+    OutDF_name = "_terrace_info_centrelines.csv"
     OutDF_name = DataDirectory+fname_prefix+OutDF_name
     new_df.to_csv(OutDF_name,index=False)
 
@@ -533,7 +596,7 @@ def long_profiler_dist(DataDirectory,fname_prefix, min_size=5000, FigFormat='png
 
     plt.clf()
 
-def long_profiler_centrelines(DataDirectory,fname_prefix, shapefile_name):
+def long_profiler_centrelines(DataDirectory,fname_prefix, shapefile_name, FigFormat='png'):
     """
     Function takes in the csv file of terrace centreline data
     and plots as a long profile against the baseline channel.
@@ -545,15 +608,33 @@ def long_profiler_centrelines(DataDirectory,fname_prefix, shapefile_name):
     fig = CreateFigure()
     ax = plt.subplot(111)
 
-    # read in the terrace csv
-    terraces = read_terrace_csv(DataDirectory,fname_prefix)
+    terrace_df = pd.read_csv(DataDirectory+fname_prefix+'_terrace_info_centrelines.csv')
 
-    # read in the shapefile csv
-    centrelines = pd.to_csv(DataDirectory+shapefile_name)
+    # read in the baseline channel csv
+    lp = read_channel_csv(DataDirectory,fname_prefix)
+    lp = lp[lp['Elevation'] != -9999]
 
-    # mask terrace df based on centrelines
-    terraces = terraces[terraces['X'] == centrelines['X'] and terraces['Y'] == centrelines['Y']]
-    print terraces
+    # get the distance from outlet along the baseline for each terrace pixels
+    terrace_df = terrace_df.merge(lp, left_on = "BaselineNode", right_on = "node")
+
+    # make the long profile plot
+    terrace_ids = terrace_df['TerraceID'].unique()
+
+    for id in terrace_ids:
+        this_df = terrace_df[terrace_df['TerraceID'] == id]
+        print this_df
+        ax.plot(this_df['DistFromOutlet']/1000, this_df['Elevation_x'],zorder=2)
+
+    ax.plot(lp['DistFromOutlet']/1000,lp['Elevation'],'k',lw=1)
+    # set axis params and save
+    ax.set_xlabel('Distance from outlet (km)')
+    ax.set_ylabel('Elevation (m)')
+    ax.set_xlim(0,(terrace_df['DistFromOutlet'].max()/1000))
+    ax.set_ylim(0,terrace_df['Elevation_x'].max()+10)
+    plt.tight_layout()
+    plt.savefig(DataDirectory+fname_prefix+'_terrace_plot_centrelines.'+FigFormat,format=FigFormat,dpi=300)
+
+
 
 #---------------------------------------------------------------------------------------------#
 # RASTER PLOTS
