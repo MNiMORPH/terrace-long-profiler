@@ -13,6 +13,7 @@ from matplotlib import pyplot as plt
 from LSDPlottingTools import colours
 import matplotlib.cm as cm
 from matplotlib import rcParams
+from matplotlib import colors as colors
 from LSDPlottingTools import LSDMap_GDALIO as IO
 from shapely.geometry import shape, Polygon, Point, LineString
 import fiona
@@ -192,7 +193,7 @@ def SelectTerracesFromShapefile(DataDirectory,shapefile_name,fname_prefix):
         this_point = Point(row['X'], row['Y'])
         #print this_point
         # check if this point is in one of the polygons
-        for id, polygon in digitised_terraces.iteritems():
+        for id, polygon in digitised_terraces.items():
             if polygon.contains(this_point):
                 # this point is within this terrace, keep it and assign a new ID number
                 row['TerraceID'] = id
@@ -234,7 +235,7 @@ def SelectTerracePointsFromCentrelines(DataDirectory,shapefile_name,fname_prefix
         this_point = Point(row['X'], row['Y'])
         #print this_point
         # check if this point is in one of the polygons
-        for id, line in centrelines.iteritems():
+        for id, line in centrelines.items():
             if line.distance(this_point) < distance:
                 # this point is within this terrace, keep it and assign a new ID number
                 row['TerraceID'] = id
@@ -602,11 +603,13 @@ def long_profiler_centrelines(DataDirectory,fname_prefix, shapefile_name, FigFor
     and plots as a long profile against the baseline channel.
 
     Author: FJC
-    Will clean up after AGU
     """
     # make a figure
     fig = CreateFigure()
     ax = plt.subplot(111)
+
+    # read in the terrace centreline shapefile
+    #terrace_df = SelectTerracePointsFromCentrelines(DataDirectory,shapefile_name,fname_prefix, distance=5)
 
     terrace_df = pd.read_csv(DataDirectory+fname_prefix+'_terrace_info_centrelines.csv')
 
@@ -620,10 +623,37 @@ def long_profiler_centrelines(DataDirectory,fname_prefix, shapefile_name, FigFor
     # make the long profile plot
     terrace_ids = terrace_df['TerraceID'].unique()
 
+    # sort out the colours. We want a different colour for each terrace...
+    this_cmap = cm.viridis
+    norm = colors.Normalize(vmin=0, vmax=0.01, clip=True)
+    mapper = cm.ScalarMappable(norm=norm, cmap=this_cmap)
+
+    terrace_gradients = []
+
     for id in terrace_ids:
+        # mask for this ID
         this_df = terrace_df[terrace_df['TerraceID'] == id]
-        print (this_df)
-        ax.plot(this_df['DistFromOutlet']/1000, this_df['Elevation_x'],zorder=2)
+        this_dist = this_df['DistFromOutlet']/1000
+        this_elev = this_df['Elevation_x']
+        # work out the number of bins. We want a spacing of ~ 10 m
+        bins = np.arange(this_dist.min(), this_dist.max(), 0.05)
+        n_bins = len(bins)
+        if n_bins < 1: n_bins = 1
+        # bin the data
+        n, _ = np.histogram(this_dist, bins=n_bins)
+        sy, _ = np.histogram(this_dist, bins=n_bins, weights = this_elev)
+        sy2, _ = np.histogram(this_dist, bins=n_bins, weights = this_elev*this_elev)
+        mean = sy/n
+
+        # work out the gradient of each terrace ID...rise/run. Use this to colour the terrace.
+        delta_x = this_df['DistFromOutlet'].max() - this_df['DistFromOutlet'].min()
+        delta_z = this_elev.max() - this_elev.min()
+        gradient = delta_z / delta_x
+        color=mapper.to_rgba(gradient)
+        terrace_gradients.append(gradient)
+
+        # plot the terrace
+        ax.plot((_[1:] + _[:-1])/2, mean,c=color,zorder=2)
 
     ax.plot(lp['DistFromOutlet']/1000,lp['Elevation'],'k',lw=1)
     # set axis params and save
@@ -631,7 +661,15 @@ def long_profiler_centrelines(DataDirectory,fname_prefix, shapefile_name, FigFor
     ax.set_ylabel('Elevation (m)')
     ax.set_xlim(0,(terrace_df['DistFromOutlet'].max()/1000))
     ax.set_ylim(0,terrace_df['Elevation_x'].max()+10)
+
+    # add a colourbar
+    mapper.set_array(terrace_gradients)
+    cbar = plt.colorbar(mapper,cmap=this_cmap,norm=norm,orientation='vertical')
+    cbar.set_label('Gradient (m/m)')
+
+
     plt.tight_layout()
+
     plt.savefig(DataDirectory+fname_prefix+'_terrace_plot_centrelines.'+FigFormat,format=FigFormat,dpi=300)
 
 #---------------------------------------------------------------------------------------------#
