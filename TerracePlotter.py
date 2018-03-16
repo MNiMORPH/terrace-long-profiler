@@ -155,6 +155,27 @@ def read_terrace_centrelines(DataDirectory, shapefile_name):
             Lines[this_id] = this_line
     return Lines
 
+def read_chi_data_map(DataDirectory, fname_prefix):
+    """
+    This function reads in a chi data map which is linked to the main stem
+    channel profile.
+
+    Args:
+        DataDirectory (str): the data directory
+        fname_prefix (str): the name of the DEM
+
+    Returns:
+        pandas dataframe with the channel info
+
+    Author: FJC
+    """
+    csv_suffix = '_chi_data_map.csv'
+    fname = DataDirectory+fname_prefix+csv_suffix
+
+    df = pd.read_csv(fname)
+
+    return df
+
 #---------------------------------------------------------------------------------------------#
 # ANALYSIS FUNCTIONS
 # Functions to analyse the terrace info
