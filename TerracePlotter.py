@@ -186,7 +186,7 @@ def SelectTerracesFromShapefile(DataDirectory,shapefile_name,fname_prefix):
     # set up the new terrace df
     new_df = pd.DataFrame()
 
-    print "Filtering points by shapefile, this might take a while..."
+    print ("Filtering points by shapefile, this might take a while...")
 
     for idx, row in terrace_df.iterrows():
         this_point = Point(row['X'], row['Y'])
@@ -228,7 +228,7 @@ def SelectTerracePointsFromCentrelines(DataDirectory,shapefile_name,fname_prefix
     # set up the new terrace df
     new_df = pd.DataFrame()
 
-    print "Filtering points by shapefile, this might take a while..."
+    print ("Filtering points by shapefile, this might take a while...")
 
     for idx, row in terrace_df.iterrows():
         this_point = Point(row['X'], row['Y'])
@@ -289,7 +289,7 @@ def write_dip_and_dipdir_to_csv(DataDirectory,fname_prefix, digitised_terraces=F
     terraces = read_terrace_csv(DataDirectory,fname_prefix)
     if digitised_terraces:
         # check if you've already done the selection, if so just read in the csv
-        print "File name is", DataDirectory+fname_prefix+'_terrace_info_shapefiles.csv'
+        print ("File name is", DataDirectory+fname_prefix+'_terrace_info_shapefiles.csv')
         if os.path.isfile(DataDirectory+fname_prefix+'_terrace_info_shapefiles.csv'):
             terraces = pd.read_csv(DataDirectory+fname_prefix+'_terrace_info_shapefiles.csv')
         else:
@@ -324,7 +324,7 @@ def get_terrace_dip_and_dipdir(terrace_df):
 
     # get the unique terrace IDs
     terraceIDs = terrace_df.TerraceID.unique()
-    print terraceIDs
+    print (terraceIDs)
 
     dips = []
     dip_dirs = []
@@ -352,7 +352,7 @@ def get_terrace_dip_and_dipdir(terrace_df):
         b = -C[1]
         c = 1
         n_vec = np.array([a,b,c])
-        print n_vec
+        print (n_vec)
         # n vector projected onto the xy plane (multiply n_vec by (1,1,0))
         n_xy = np.array([a,b,0])
 
@@ -506,8 +506,8 @@ def long_profiler(DataDirectory,fname_prefix, min_size=5000, FigFormat='png', si
     # get discrete colours so that each terrace is a different colour
     this_cmap = cm.rainbow
     this_cmap = colours.cmap_discretize(len(newIDs),this_cmap)
-    print "N COLOURS: ", len(newIDs)
-    print newIDs
+    print ("N COLOURS: ", len(newIDs))
+    print (newIDs)
     colors = iter(this_cmap(np.linspace(0, 1, len(newIDs))))
     # plot the terraces
     for i in range(len(xTerraces)):
@@ -555,7 +555,7 @@ def long_profiler_dist(DataDirectory,fname_prefix, min_size=5000, FigFormat='png
 
     # get the distance from outlet along the baseline for each terrace pixels
     new_terraces = terraces.merge(lp, left_on = "BaselineNode", right_on = "node")
-    print new_terraces
+    print (new_terraces)
 
     xTerraces = np.array(new_terraces['DistFromOutlet'])
     yTerraces = np.array(new_terraces['DistToBaseline'])
@@ -578,9 +578,9 @@ def long_profiler_dist(DataDirectory,fname_prefix, min_size=5000, FigFormat='png
     MS_Elevation = np.array(lp['Elevation'])
     Terrace_Elevation = mean
 
-    print MS_Dist
-    print MS_Elevation
-    print Terrace_Elevation
+    print (MS_Dist)
+    print (MS_Elevation)
+    print (Terrace_Elevation)
 
 
     # plot the main stem channel in black
@@ -622,7 +622,7 @@ def long_profiler_centrelines(DataDirectory,fname_prefix, shapefile_name, FigFor
 
     for id in terrace_ids:
         this_df = terrace_df[terrace_df['TerraceID'] == id]
-        print this_df
+        print (this_df)
         ax.plot(this_df['DistFromOutlet']/1000, this_df['Elevation_x'],zorder=2)
 
     ax.plot(lp['DistFromOutlet']/1000,lp['Elevation'],'k',lw=1)

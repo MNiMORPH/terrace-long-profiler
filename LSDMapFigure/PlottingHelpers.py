@@ -226,7 +226,7 @@ def MapFigureSizer(figure_width_inches,aspect_ratio, cbar_loc = "None", title = 
 
 
     print("The figure size is: ")
-    print fig_size_inches
+    print(fig_size_inches)
     print("Map axes are:")
     print(map_axes)
     print("cbar_axes are:")
