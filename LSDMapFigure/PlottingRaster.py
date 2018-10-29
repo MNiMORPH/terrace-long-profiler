@@ -130,7 +130,7 @@ class BaseRaster(object):
             print("I'm using a terrain colour scheme")
             self._colourmap = LSDP.colours.UsefulColourmaps.darkearth
         else:
-            print ("That raster style is not yet supported. Currently only " \
+            print("That raster style is not yet supported. Currently only " \
                    " 'Hillshade' and 'Terrain' are supported.")
 
     def set_colourmap(self, cmap):
@@ -797,17 +797,15 @@ class MapFigure(object):
             gray_colour = "#a9a9a9"
 
             # now plot the polygons
-            print Basins
-            print junction_to_key_dict
+            print(Basins)
             print('Plotting the polygons, colouring by value...')
             for junc, poly in Basins.iteritems():
 
                 # If we are using keys, we need to check to see if the key referred to by
                 # this junction is in the value dict
                 if use_keys_not_junctions:
-                    print junc
                     this_key = junction_to_key_dict[int(junc)]
-                    print ("This key is: "+str(this_key)+", and this value is: "+str(value_dict[this_key]))
+                    print("This key is: "+str(this_key)+", and this value is: "+str(value_dict[this_key]))
                     if this_key in value_dict:
                         this_patch = PolygonPatch(poly, fc=new_colours.to_rgba( value_dict[this_key] ), ec="none", alpha=alpha)
                         self.ax_list[0].add_patch(this_patch)
@@ -950,17 +948,17 @@ class MapFigure(object):
             vmin = min_value
             vmax = max_value
         print("The min and max for the colourbar are:")
-        print vmin, vmax
+        print(vmin, vmax)
 
         # get the additional end spacing for colourbar
         tick_spacing = (vmax-vmin)/(n_colours)
-        print tick_spacing
+        print(tick_spacing)
         new_vmin = vmin-(tick_spacing/2)
         new_vmax = vmax+(tick_spacing/2)+tick_spacing
 
         #get list of tick locations
         tick_locs = np.arange(new_vmin, new_vmax, step=tick_spacing)
-        print tick_locs
+        print(tick_locs)
 
         # update ticks
         tick_locator = ticker.FixedLocator(tick_locs)
@@ -975,7 +973,7 @@ class MapFigure(object):
                 tick_labels = [str(int(x)) for x in tick_labels]
             else:
                 tick_labels = [str(x) for x in tick_labels]
-            print tick_labels
+            print(tick_labels)
 
         if self.colourbar_orientation == "horizontal":
             cbar.ax.set_xticklabels(tick_labels, rotation=cbar_label_rotation)
@@ -1195,7 +1193,7 @@ class MapFigure(object):
             tg = thisPointData.QueryData(label_field)
             print(tg)
             for i in range(len(easting)):
-                print str(tg[i])
+                print(str(tg[i]))
                 sc =self.ax_list[0].text(easting[i]-offset,northing[i]-offset,str(tg[i]),fontsize = font_size)
 
         # Annoying but the scatter plot resets the extents so you need to reassert them
@@ -1294,9 +1292,9 @@ class MapFigure(object):
             EPSG_string = self._RasterList[0]._EPSGString
             print("EPSG_string is: "+EPSG_string)
             [this_easting,this_northing] = thisPointData.GetUTMEastingNorthing(EPSG_string)
-            print (this_easting, this_northing)
+            print(this_easting, this_northing)
             thinned_data = thisPointData.QueryData(column_for_plotting, PANDEX=PANDEX)
-            print thinned_data
+            print(thinned_data)
 
             for idx, data in enumerate(thinned_data):
                 texts.append(self.ax_list[0].text(this_easting[idx],this_northing[idx], str(data),fontsize = 8, color= text_colour,alpha=alpha,bbox=bbox_props))
@@ -1326,15 +1324,15 @@ class MapFigure(object):
         from shapely.geometry import Point
 
         # rewrite with new values if you need to (for basins)
-        print points
-        print label_dict
+        print(points)
+        print(label_dict)
 
         new_points = {}
         if label_dict:
             for key, label in label_dict.iteritems():
                 # get the point for this key
                 new_points[label] = points.get(key)
-                print key, label, new_points[label]
+                print(key, label, new_points[label])
             points = new_points
 
         # A list of text objects
@@ -1347,7 +1345,7 @@ class MapFigure(object):
         # Format the bounding box
         bbox_props = dict(boxstyle="Round4,pad=0.1", fc="w", ec=border_colour, lw=0.5,alpha = alpha)
 
-        print points
+        print(points)
         for key, point in points.iteritems():
             x = point.x
             y = point.y
@@ -1430,7 +1428,7 @@ class MapFigure(object):
         # convert azimuths to radians
         azimuths = list(arrow_df[azimuth_header])
         az_radians = np.radians(azimuths)
-        print az_radians
+        print(az_radians)
 
         # get points
         X = np.array(arrow_df['X'])
@@ -1440,7 +1438,7 @@ class MapFigure(object):
         new_X = X - dx/2
         new_Y = Y - dy/2
 
-        print dx,dy
+        print(dx,dy)
 
         self.ax_list[0].quiver(new_X,new_Y,dx,dy,angles='xy',scale_units='xy',scale=1, width=0.002)
 

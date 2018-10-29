@@ -15,6 +15,7 @@ import matplotlib.cm as cm
 from matplotlib import rcParams
 from matplotlib import colors as colors
 from LSDPlottingTools import LSDMap_GDALIO as IO
+from LSDMapFigure import PlottingHelpers as H
 from shapely.geometry import shape, Polygon, Point, LineString
 import fiona
 import os
@@ -64,118 +65,6 @@ def CreateFigure(FigSizeFormat="default", AspectRatio=16./9.):
     Fig = plt.figure(figsize=(FigWidth_Inches,FigWidth_Inches/AspectRatio))
 
     return Fig
-
-#---------------------------------------------------------------------------------------------#
-# CSV READERS
-# Functions to read in the csv files
-#---------------------------------------------------------------------------------------------#
-
-def read_terrace_csv(DataDirectory,fname_prefix):
-    """
-    This function reads in the csv file with the extension "_terrace_info.csv"
-    and returns it as a pandas dataframe
-
-    Args:
-        DataDirectory (str): the data directory
-        fname_prefix (str): the name of the DEM
-
-    Returns:
-        pandas dataframe with the terrace info
-
-    Author: FJC
-    """
-    csv_suffix = '_terrace_info.csv'
-    fname = DataDirectory+fname_prefix+csv_suffix
-
-    df = pd.read_csv(fname)
-
-    return df
-
-def read_channel_csv(DataDirectory,fname_prefix):
-    """
-    This function reads in the csv file with the extension "_baseline_channel_info.csv"
-    and returns it as a pandas dataframe
-
-    Args:
-        DataDirectory (str): the data directory
-        fname_prefix (str): the name of the DEM
-
-    Returns:
-        pandas dataframe with the channel info
-
-    Author: FJC
-    """
-    csv_suffix = '_baseline_channel_info.csv'
-    fname = DataDirectory+fname_prefix+csv_suffix
-
-    df = pd.read_csv(fname)
-
-    return df
-
-def read_terrace_shapefile(DataDirectory, shapefile_name):
-    """
-    This function reads in a shapefile of digitised terraces
-    using shapely and fiona
-
-    Args:
-        DataDirectory (str): the data directory
-        shapefile_name (str): the name of the shapefile
-
-    Returns: shapely polygons with terraces
-
-    Author: FJC
-    """
-    Polygons = {}
-    with fiona.open(DataDirectory+shapefile_name, 'r') as input:
-        for f in input:
-            this_shape = Polygon(shape(f['geometry']))
-            this_id = f['properties']['id']
-            Polygons[this_id] = this_shape
-
-    return Polygons
-
-def read_terrace_centrelines(DataDirectory, shapefile_name):
-    """
-    This function reads in a shapefile of terrace centrelines
-    using shapely and fiona
-
-    Args:
-        DataDirectory (str): the data directory
-        shapefile_name (str): the name of the shapefile
-
-    Returns: shapely polygons with terraces
-
-    Author: FJC
-    """
-    Lines = {}
-    with fiona.open(DataDirectory+shapefile_name, 'r') as input:
-        for f in input:
-            this_line = LineString(shape(f['geometry']))
-            this_id = f['properties']['id']
-            Lines[this_id] = this_line
-    return Lines
-
-def read_chi_data_map(DataDirectory, fname_prefix):
-    """
-    This function reads in a chi data map which is linked to the main stem
-    channel profile.
-
-    Args:
-        DataDirectory (str): the data directory
-        fname_prefix (str): the name of the DEM
-
-    Returns:
-        pandas dataframe with the channel info
-
-    Author: FJC
-    """
-    csv_suffix = '_chi_data_map.csv'
-    fname = DataDirectory+fname_prefix+csv_suffix
-
-    df = pd.read_csv(fname)
-
-    return df
-
 #---------------------------------------------------------------------------------------------#
 # ANALYSIS FUNCTIONS
 # Functions to analyse the terrace info
@@ -198,10 +87,10 @@ def SelectTerracesFromShapefile(DataDirectory,shapefile_name,fname_prefix):
     Author: FJC
     """
     # first get the terrace df
-    terrace_df = read_terrace_csv(DataDirectory,fname_prefix)
+    terrace_df = H.read_terrace_csv(DataDirectory,fname_prefix)
 
     # now get the shapefile with the digitised terraces
-    digitised_terraces = read_terrace_shapefile(DataDirectory,shapefile_name)
+    digitised_terraces = H.read_terrace_shapefile(DataDirectory,shapefile_name)
 
     # for each point in the df, need to check if it is in one of the polygons. This will probably be slow.
 
@@ -240,10 +129,10 @@ def SelectTerracePointsFromCentrelines(DataDirectory,shapefile_name,fname_prefix
     Author: FJC
     """
     # first get the terrace df
-    terrace_df = read_terrace_csv(DataDirectory,fname_prefix)
+    terrace_df = H.read_terrace_csv(DataDirectory,fname_prefix)
 
     # now get the shapefile with the digitised terraces
-    centrelines = read_terrace_centrelines(DataDirectory,shapefile_name)
+    centrelines = H.read_terrace_centrelines(DataDirectory,shapefile_name)
 
     # for each point in the df, need to check if it is in one of the polygons. This will probably be slow.
 
@@ -308,7 +197,7 @@ def write_dip_and_dipdir_to_csv(DataDirectory,fname_prefix, digitised_terraces=F
     Author: FJC
     """
     # read in the terrace csv
-    terraces = read_terrace_csv(DataDirectory,fname_prefix)
+    terraces = H.read_terrace_csv(DataDirectory,fname_prefix)
     if digitised_terraces:
         # check if you've already done the selection, if so just read in the csv
         print ("File name is", DataDirectory+fname_prefix+'_terrace_info_shapefiles.csv')
@@ -490,11 +379,11 @@ def long_profiler(DataDirectory,fname_prefix, min_size=5000, FigFormat='png', si
     ax = fig.add_subplot(gs[5:100,10:95])
 
     # read in the terrace csv
-    terraces = read_terrace_csv(DataDirectory,fname_prefix)
+    terraces = H.read_terrace_csv(DataDirectory,fname_prefix)
     filter_terraces(terraces, min_size)
 
     # read in the baseline channel csv
-    lp = read_channel_csv(DataDirectory,fname_prefix)
+    lp = H.read_channel_csv(DataDirectory,fname_prefix)
     lp = lp[lp['Elevation'] != -9999]
 
     terraceIDs = sorted(list(set(list(terraces.TerraceID))))
@@ -561,7 +450,7 @@ def long_profiler_dist(DataDirectory,fname_prefix, min_size=5000, FigFormat='png
     ax = plt.subplot(111)
 
     # read in the terrace csv
-    terraces = read_terrace_csv(DataDirectory,fname_prefix)
+    terraces = H.read_terrace_csv(DataDirectory,fname_prefix)
     if digitised_terraces:
         # check if you've already done the selection, if so just read in the csv
         if os.path.isfile(DataDirectory+fname_prefix+'_terrace_info_shapefiles.csv'):
@@ -572,7 +461,7 @@ def long_profiler_dist(DataDirectory,fname_prefix, min_size=5000, FigFormat='png
         filter_terraces(terraces, min_size)
 
     # read in the baseline channel csv
-    lp = read_channel_csv(DataDirectory,fname_prefix)
+    lp = H.read_channel_csv(DataDirectory,fname_prefix)
     lp = lp[lp['Elevation'] != -9999]
 
     # get the distance from outlet along the baseline for each terrace pixels
@@ -635,7 +524,7 @@ def long_profiler_centrelines(DataDirectory,fname_prefix, shapefile_name, FigFor
     terrace_df = pd.read_csv(DataDirectory+fname_prefix+'_terrace_info_centrelines.csv')
 
     # read in the baseline channel csv
-    lp = read_channel_csv(DataDirectory,fname_prefix)
+    lp = H.read_channel_csv(DataDirectory,fname_prefix)
     lp = lp[lp['Elevation'] != -9999]
 
     # get the distance from outlet along the baseline for each terrace pixels
@@ -748,7 +637,7 @@ def MakeRasterPlotTerraceIDs(DataDirectory,fname_prefix, FigFormat='png', size_f
     TerraceIDName = fname_prefix+'_terrace_IDs'+raster_ext
 
     # get the terrace csv
-    terraces = read_terrace_csv(DataDirectory,fname_prefix)
+    terraces = H.read_terrace_csv(DataDirectory,fname_prefix)
     terraceIDs = sorted(list(set(list(terraces.TerraceID))))
     xTerraces = []
     zTerraces = []
@@ -839,7 +728,7 @@ def MakeRasterPlotTerraceElev(DataDirectory,fname_prefix, FigFormat='png', size_
     TerraceElevName = fname_prefix+'_terrace_relief_final'+raster_ext
 
     # get the terrace csv
-    terraces = read_terrace_csv(DataDirectory,fname_prefix)
+    terraces = H.read_terrace_csv(DataDirectory,fname_prefix)
     terraceIDs = sorted(list(set(list(terraces.TerraceID))))
     xTerraces = []
     zTerraces = []
@@ -933,7 +822,7 @@ def MakeRasterPlotTerraceDips(DataDirectory,fname_prefix,min_size=5000,FigFormat
     TerraceElevName = fname_prefix+'_terrace_relief_final'+raster_ext
 
     # get the terrace csv
-    terraces = read_terrace_csv(DataDirectory,fname_prefix)
+    terraces = H.read_terrace_csv(DataDirectory,fname_prefix)
     filter_terraces(terraces)
 
     # get the terrace IDs
