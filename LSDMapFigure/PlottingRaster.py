@@ -22,6 +22,7 @@ import matplotlib as mpl
 import matplotlib.pyplot as plt
 import matplotlib.cm as _cm
 import matplotlib.colors as _mcolors
+import matplotlib.lines as mlines
 from matplotlib import colors
 import matplotlib.axes
 import numpy as np
@@ -282,6 +283,7 @@ class MapFigure(object):
         self.FigFormat = "png"
 
 
+
         # The way this is going to work is that you can have many rasters in the
         # plot that get appended into a list. Each one has its own colourmap
         # and properties
@@ -315,6 +317,33 @@ class MapFigure(object):
         # A title if needed
         self.title = plot_title
 
+        # set up a list of legend handles for building the legend if needed
+        self.legend_handles_list = []
+
+    def SetCustomExtent(self,xmin,xmax,ymin,ymax):
+        """
+        This function sets the plot extent in map coordinates and remakes the axis ticks
+
+        Args:
+          xmin: the minimum extent in easting
+          xmax: the maximum extent in easting
+          ymin: the minimum extent in northing
+          ymax: the maximum extent in northing
+
+        Author: MDH
+        """
+        # Get the tick properties
+        self._xmin = xmin
+        self._ymin = ymin
+        self._xmax = xmax
+        self._ymax = ymax
+        self.make_ticks()
+
+        # Annoying but the scatter plot resets the extents so you need to reassert them
+        self.ax_list[0].set_xlim(self._xmin,self._xmax)
+        self.ax_list[0].set_ylim(self._ymin,self._ymax)
+        self.ax_list = self.make_base_image(self.ax_list)
+
 
     def make_ticks(self):
         """
@@ -326,10 +355,10 @@ class MapFigure(object):
 
         if self._coord_type == "UTM":
             self.tick_xlocs,self.tick_ylocs,self.tick_x_labels,self.tick_y_labels = LSDP.GetTicksForUTMNoInversion(self._BaseRasterFullName,self._xmax,self._xmin,
-                             self._ymax,self._ymin,self._n_target_ticks)
+                             self._ymax,self._ymin,self._n_target_ticks,self.min_tick_spacing)
         elif self._coord_type == "UTM_km":
             self.tick_xlocs,self.tick_ylocs,self.tick_x_labels,self.tick_y_labels = LSDP.GetTicksForUTMNoInversion(self._BaseRasterFullName,self._xmax,self._xmin,
-                             self._ymax,self._ymin,self._n_target_ticks)
+                             self._ymax,self._ymin,self._n_target_ticks,minimum_tick_spacing=1000)
             n_hacked_digits = 3
             self.tick_x_labels = LSDP.TickLabelShortenizer(self.tick_x_labels,n_hacked_digits)
             self.tick_y_labels = LSDP.TickLabelShortenizer(self.tick_y_labels,n_hacked_digits)
@@ -466,7 +495,7 @@ class MapFigure(object):
                         colour_min_max = [],
                         modify_raster_values=False,
                         old_values=[], new_values=[], cbar_type=float,
-                        NFF_opti = False, custom_min_max = []):
+                        NFF_opti = False, custom_min_max = [], zorder=1):
         """
         This function adds a drape over the base raster.
 
@@ -496,7 +525,7 @@ class MapFigure(object):
         self.ax_list = self._add_drape_image(self.ax_list,RasterName,Directory,colourmap,alpha,
                                              colorbarlabel,discrete_cmap,n_colours, norm,
                                              colour_min_max,modify_raster_values,old_values,
-                                             new_values,cbar_type, NFF_opti, custom_min_max)
+                                             new_values,cbar_type, NFF_opti, custom_min_max, zorder=zorder)
         #print("Getting axis limits in drape function: ")
         #print(self.ax_list[0].get_xlim())
 
@@ -509,7 +538,7 @@ class MapFigure(object):
                          colour_min_max = [],
                          modify_raster_values = False,
                          old_values=[], new_values = [], cbar_type=float,
-                         NFF_opti = False, custom_min_max = [], tick_labels=None):
+                         NFF_opti = False, custom_min_max = [],zorder=1):
         """
         This function adds a drape over the base raster. It does all the dirty work
         I can't quite remember why I did it in two steps but I vaguely recall trying it in one step and it didn't work.
@@ -531,7 +560,6 @@ class MapFigure(object):
             cbar_type (type): Sets the type of the colourbar (if you want int labels, set to int)
             NFF_opti (bool): If true, uses the new file loading functions. It is faster but hasn't been completely tested.
             custom_min_max (list of int/float): if it contains two elements, recast the raster to [min,max] values for display.
-            tick_labels: option to pass in a list of values to label the ticks of the colourbar. if None then will just define them linearly.
 
         Author: SMM
         """
@@ -563,16 +591,16 @@ class MapFigure(object):
             if len(colour_min_max)== 2:
                 print("I am setting customisable colourbar minimum and maximum values: %s ¦¦ %s" %(colour_min_max[0],colour_min_max[1]))
                 im = self.ax_list[0].imshow(self._RasterList[-1]._RasterArray, self._RasterList[-1]._colourmap, extent = self._RasterList[0].extents,
-                                 interpolation="nearest",alpha = alpha, norm = mpl.colors.Normalize(vmin=colour_min_max[0], vmax=colour_min_max[1]))
+                                 interpolation="nearest",alpha = alpha, norm = mpl.colors.Normalize(vmin=colour_min_max[0], vmax=colour_min_max[1]),zorder=zorder)
             else:
                 print("I cannot customize your colour minimum and maximum because I don't understand your input. It should be [min,max] with min max as integers or floats")
         else:
             if(nroma != "None"):
                 im = self.ax_list[0].imshow(self._RasterList[-1]._RasterArray, self._RasterList[-1]._colourmap, extent = self._RasterList[0].extents,
-                                 interpolation="nearest",alpha = alpha, norm = nroma)
+                                 interpolation="nearest",alpha = alpha, norm = nroma, zorder=zorder)
             else:
                 im = self.ax_list[0].imshow(self._RasterList[-1]._RasterArray, self._RasterList[-1]._colourmap,
-                                 extent = self._RasterList[0].extents, interpolation="nearest",alpha = alpha)
+                                 extent = self._RasterList[0].extents, interpolation="nearest",alpha = alpha, zorder=zorder)
         # This affects all axes because we set share_all = True.
         #ax.set_xlim(self._xmin,self._xmax)
         #ax.set_ylim(self._ymin,self._ymax)
@@ -584,7 +612,7 @@ class MapFigure(object):
         if self.colourbar_orientation != "None":
             self.ax_list = self.add_colourbar(self.ax_list,im,self._RasterList[-1],
                                               colorbarlabel = colorbarlabel, discrete=discrete_cmap,
-                                              n_colours=n_colours, cbar_type=cbar_type, tick_labels=tick_labels)
+                                              n_colours=n_colours, cbar_type=cbar_type)
 
 
         return self.ax_list
@@ -598,7 +626,8 @@ class MapFigure(object):
                          use_keys_not_junctions = True,
                          label_basins = True, adjust_text = False, rename_dict = {},
                          value_dict = {}, mask_list = [],
-                         edgecolour='black', linewidth=1, cbar_dict = {}, parallel=False):
+                         edgecolour='black', linewidth=1, cbar_dict = {}, colorbartickthinfactor=1, parallel=False,
+                         outlines_only = False,zorder = 1):
         """
         This is a basin plotting routine. It plots basins as polygons which
         can be coloured and labelled in various ways.
@@ -625,7 +654,9 @@ class MapFigure(object):
             cbar_dict (dict): an optional dictionary to set the min and max of the colourbars, where the key is the
             min and the max, and the values are what you want to set the colourbar to. Leave empty if you just want this
             to be the same as the value dict.
+            colorbartickthinfactor(int): a factor to reduce the number of ticks and labels displayed on the colour bar. Value of 2 would display every 2nd tick.
             parallel (bool): option flag for processing multiple basin raster files triggered by parallel chi mapping tool.
+            outlines_only (bool): If true, only plot the outlines.
 
         Author: SMM
         """
@@ -648,7 +679,7 @@ class MapFigure(object):
         if not parallel:
           BasinInfoDF = phelp.ReadBasinInfoCSV(Directory, BasinInfoPrefix)
         else:
-          BasinInfoDF = phelp.AppendBasinInfoCSVs(Directory)
+          BasinInfoDF = phelp.AppendBasinInfoCSVs(Directory,BasinInfoPrefix)
 
         # Extract the basin keys
         basin_keys = list(BasinInfoDF['basin_key'])
@@ -687,16 +718,16 @@ class MapFigure(object):
             # First get the points
             Points = {}
             print("The number of basins are: "+str(len(Basins)))
-            for basin_key, basin in Basins.iteritems():
+            for basin_key, basin in Basins.items():
                 Points[basin_key] = Point(basin.representative_point())
             print("The number of points are: "+str(len(Points)))
 
             # Now check if there is a renaming dictionary
             if len(rename_dict) == 0:
                 if use_keys_not_junctions:
-                    texts = self.add_text_annotation_from_shapely_points_v2(Points, text_colour='k', label_dict=junction_to_key_dict)
+                    texts = self.add_text_annotation_from_shapely_points_v2(Points, text_colour='k', label_dict=junction_to_key_dict,zorder = zorder +1)
                 else:
-                    texts = self.add_text_annotation_from_shapely_points_v2(Points, text_colour='k')
+                    texts = self.add_text_annotation_from_shapely_points_v2(Points, text_colour='k',zorder = zorder +1)
             else:
                 # Okay so the way tyhis is going to work is that we ware going to
                 # look for renamed basins but basins that haven't been renamed are
@@ -710,14 +741,17 @@ class MapFigure(object):
                     # We are using keys. We need to replace the label dict with
                     # with the strings from the renamed basins
                     for key in rename_dict:
-                        print("I am renaming. The key is" +str(key))
+                        print("I am renaming. The key is: " +str(key))
                         # get the junction number of this key
                         if key in key_to_junction_dict:
                             this_junc = key_to_junction_dict[key]
+                            print("The junction is: "+ str(this_junc))
                             new_label_dict[this_junc] = rename_dict[key]
+                        else:
+                            print("I am missing this key")
 
                     # Use this new label dict to rename the junctions
-                    texts = self.add_text_annotation_from_shapely_points_v2(Points, text_colour='k', label_dict=new_label_dict)
+                    texts = self.add_text_annotation_from_shapely_points_v2(Points, text_colour='k', label_dict=new_label_dict,zorder = zorder +1)
 
                 else:
                     # Now we need a new junction dict for this
@@ -731,7 +765,7 @@ class MapFigure(object):
                             new_label_dict[key] = rename_dict[key]
 
                     # Use this new label dict to rename the junctions
-                    texts = self.add_text_annotation_from_shapely_points_v2(Points, text_colour='k', label_dict=new_label_dict)
+                    texts = self.add_text_annotation_from_shapely_points_v2(Points, text_colour='k', label_dict=new_label_dict,zorder = zorder +1)
 
             if adjust_text == True:
                 print("I am adjusting the text for you. Warning: this takes a long time!")
@@ -767,13 +801,14 @@ class MapFigure(object):
 
             # now plot the polygons
             print('Plotting the polygons, colouring by basin...')
-            for key, poly in Basins.iteritems():
+            for key, poly in Basins.items():
                 print(key, int(key))
                 colourkey = int(key) % n_colours
                 # We need two patches since we don't want the edges transparent
-                this_patch = PolygonPatch(poly, fc=new_colours.to_rgba(colourkey), ec="none", alpha=alpha)
-                self.ax_list[0].add_patch(this_patch)
-                this_patch = PolygonPatch(poly, fc="none", ec=edgecolour, alpha=1)
+                if not outlines_only:
+                    this_patch = PolygonPatch(poly, fc=new_colours.to_rgba(colourkey), ec="none", alpha=alpha,zorder = zorder)
+                    self.ax_list[0].add_patch(this_patch)
+                this_patch = PolygonPatch(poly, fc="none", ec=edgecolour, alpha=1,zorder = zorder)
                 self.ax_list[0].add_patch(this_patch)
         else:
             if discrete_cmap:
@@ -798,31 +833,34 @@ class MapFigure(object):
 
             # now plot the polygons
             print(Basins)
+            print(junction_to_key_dict)
             print('Plotting the polygons, colouring by value...')
-            for junc, poly in Basins.iteritems():
+            for junc, poly in Basins.items():
 
                 # If we are using keys, we need to check to see if the key referred to by
                 # this junction is in the value dict
-                if use_keys_not_junctions:
-                    this_key = junction_to_key_dict[int(junc)]
-                    print("This key is: "+str(this_key)+", and this value is: "+str(value_dict[this_key]))
-                    if this_key in value_dict:
-                        this_patch = PolygonPatch(poly, fc=new_colours.to_rgba( value_dict[this_key] ), ec="none", alpha=alpha)
-                        self.ax_list[0].add_patch(this_patch)
+                if not outlines_only:
+                    if use_keys_not_junctions:
+                        print(junc)
+                        this_key = junction_to_key_dict[int(junc)]
+                        #print ("This key is: "+str(this_key)+", and this value is: "+str(value_dict[this_key]))
+                        if this_key in value_dict:
+                            this_patch = PolygonPatch(poly, fc=new_colours.to_rgba( value_dict[this_key] ), ec="none", alpha=alpha, zorder = zorder)
+                            self.ax_list[0].add_patch(this_patch)
+                        else:
+                            this_patch = PolygonPatch(poly, fc=gray_colour, ec="none", alpha=alpha, zorder = zorder)
+                            self.ax_list[0].add_patch(this_patch)
                     else:
-                        this_patch = PolygonPatch(poly, fc=gray_colour, ec="none", alpha=alpha)
-                        self.ax_list[0].add_patch(this_patch)
-                else:
-                    # We are using junction indices so these link directly in to the polygon keys
-                    if junc in value_dict:
-                        this_patch = PolygonPatch(poly, fc=new_colours.to_rgba( value_dict[junc] ), ec="none", alpha=alpha)
-                        self.ax_list[0].add_patch(this_patch)
-                    else:
-                        this_patch = PolygonPatch(poly, fc=gray_colour, ec="none", alpha=alpha)
-                        self.ax_list[0].add_patch(this_patch)
+                        # We are using junction indices so these link directly in to the polygon keys
+                        if junc in value_dict:
+                            this_patch = PolygonPatch(poly, fc=new_colours.to_rgba( value_dict[junc] ), ec="none", alpha=alpha, zorder = zorder)
+                            self.ax_list[0].add_patch(this_patch)
+                        else:
+                            this_patch = PolygonPatch(poly, fc=gray_colour, ec="none", alpha=alpha, zorder = zorder)
+                            self.ax_list[0].add_patch(this_patch)
 
                 # We need to add the outline seperately because we don't want it to be transparent
-                this_patch = PolygonPatch(poly, fc="none", ec=edgecolour, alpha=1)
+                this_patch = PolygonPatch(poly, fc="none", ec=edgecolour, alpha=1, zorder = zorder)
                 self.ax_list[0].add_patch(this_patch)
 
 
@@ -832,10 +870,18 @@ class MapFigure(object):
             print("The colourbar orientation for basin plotting is: "+self.colourbar_orientation)
             if self.colourbar_orientation != "None":
                 print("Let me add a colourbar for your basin data")
+                print("CBAR TYPE IS", cbar_type)
                 this_cbar_type = cbar_type
                 this_cbarlabel = colorbarlabel
+
+                print("\n\n")
+                print(min_value)
+                print(max_value)
+                print(n_colours)
+                print("\n\n")
+
                 self.ax_list = self.add_objectless_colourbar(self.ax_list,
-                                                         min_value, max_value,
+                                                         min_value, max_value, thinningfactor=colorbartickthinfactor,
                                                          cmap = this_cmap,colorbarlabel = this_cbarlabel,
                                                          discrete=discrete_cmap, n_colours=n_colours, cbar_type=this_cbar_type)
 
@@ -869,12 +915,12 @@ class MapFigure(object):
         cdict = {}
 
         for ki,key in enumerate(('red','green','blue')):
-         cdict[key] = [ (indices[i], colors_rgba[i-1,ki], colors_rgba[i,ki]) for i in xrange(N+1) ]
+         cdict[key] = [ (indices[i], colors_rgba[i-1,ki], colors_rgba[i,ki]) for i in range(N+1) ]
 
         # Return colormap object.
         return _mcolors.LinearSegmentedColormap(cmap.name + "_%d"%N, cdict, 1024)
 
-    def add_colourbar(self,ax_list,im,BaseRaster,colorbarlabel = "Colourbar",discrete=False, n_colours=10, cbar_type=float, tick_labels=None):
+    def add_colourbar(self,ax_list,im,BaseRaster,colorbarlabel = "Colourbar",discrete=False, n_colours=10, cbar_type=float):
         """
         This adds the colourbar to the image.
         IMPORTANT: It assumes the colourbar occupies the last axis element
@@ -896,7 +942,7 @@ class MapFigure(object):
 
         if discrete==True:
             # change ticks
-            self.fix_colourbar_ticks(BaseRaster, cbar, n_colours, cbar_type, tick_labels=tick_labels, use_baseraster=True)
+            self.fix_colourbar_ticks(BaseRaster, cbar, n_colours, cbar_type)
 
         #Will's changes:
         # Changed rotation of colourbar text to 90 and the labelpad to -75 for "left"
@@ -908,11 +954,11 @@ class MapFigure(object):
         elif self.colourbar_location == 'left':
             ax_list[-1].set_ylabel(colorbarlabel, fontname='Arial',labelpad=-75,rotation=90)
         elif self.colourbar_location == 'right':
-            ax_list[-1].set_ylabel(colorbarlabel, fontname='Arial',labelpad=15,rotation=270)
+            ax_list[-1].set_ylabel(colorbarlabel, fontname='Arial',labelpad=10,rotation=270)
         return ax_list
 
     def fix_colourbar_ticks(self, BaseRaster, cbar,n_colours, cbar_type=float,
-                            use_baseraster = True, min_value = 0, max_value = 0, cbar_label_rotation=0, tick_labels=None):
+                            use_baseraster = True, min_value = 0, max_value = 0, cbar_label_rotation=30,thinningfactor=1):
         """
         This function takes a discrete colourbar and fixes the ticks so they are
         in the middle of each colour
@@ -948,32 +994,38 @@ class MapFigure(object):
             vmin = min_value
             vmax = max_value
         print("The min and max for the colourbar are:")
-        print(vmin, vmax)
+        print((vmin, vmax))
+        print(n_colours)
+        print(cbar_type)
 
         # get the additional end spacing for colourbar
-        tick_spacing = (vmax-vmin)/(n_colours)
+        tick_spacing = float(vmax-vmin)/float(n_colours)
         print(tick_spacing)
         new_vmin = vmin-(tick_spacing/2)
-        new_vmax = vmax+(tick_spacing/2)+tick_spacing
+        new_vmax = vmax+(tick_spacing/2) #+tick_spacing
 
         #get list of tick locations
         tick_locs = np.arange(new_vmin, new_vmax, step=tick_spacing)
-        print(tick_locs)
+        tick_locs = tick_locs[::thinningfactor]-1
 
         # update ticks
         tick_locator = ticker.FixedLocator(tick_locs)
+        print(tick_locator)
+
         cbar.locator = tick_locator
         cbar.update_ticks()
 
         #print BaseRaster._RasterArray[np.isnan(BaseRaster._RasterArray) == False]
 
-        if tick_labels == None:
-            tick_labels = np.linspace(vmin, vmax, n_colours)
-            if cbar_type == int:
-                tick_labels = [str(int(x)) for x in tick_labels]
-            else:
-                tick_labels = [str(x) for x in tick_labels]
-            print(tick_labels)
+        # get tick labels
+        tick_labels = np.linspace(vmin, vmax, n_colours)
+        if cbar_type == int:
+            tick_labels = [str(int(x)) for x in tick_labels]
+        else:
+            tick_labels = [str(x) for x in tick_labels]
+        print(tick_labels)
+
+        tick_labels = tick_labels[::thinningfactor]
 
         if self.colourbar_orientation == "horizontal":
             cbar.ax.set_xticklabels(tick_labels, rotation=cbar_label_rotation)
@@ -1010,7 +1062,7 @@ class MapFigure(object):
 
     def add_objectless_colourbar(self,ax_list,minimum_value, maximum_value,
                                  cmap = "cubehelix",colorbarlabel = "Colourbar",
-                                 discrete=False, n_colours=10, cbar_type=float):
+                                 discrete=False, n_colours=10, cbar_type=float, thinningfactor=1):
         """
         This adds a colourbar that is not attached to any particular object
 
@@ -1036,7 +1088,7 @@ class MapFigure(object):
 
         if discrete==True:
             # change ticks
-            self.fix_colourbar_ticks(BaseRaster, cbar, n_colours, cbar_type, False, minimum_value, maximum_value)
+            self.fix_colourbar_ticks(BaseRaster, cbar, n_colours, cbar_type, False, minimum_value, maximum_value, thinningfactor=thinningfactor)
             cbar_label_rotation=30
 
 
@@ -1062,7 +1114,9 @@ class MapFigure(object):
                        max_point_size = 5, min_point_size = 0.5,
                        colour_log = False, colour_manual_scale = [],
                        manual_size = 0.5, alpha = 1, minimum_log_scale_cut_off = -10, label_field = "None",
-                       font_size = 6, offset = 100, zorder=1):
+                       font_size = 6, offset = 100, zorder=1, marker = "o", black_contours = False, discrete_colours = False, NColours = 10,scale_in_absolute = False, color_abs =False, unicolor = "blue",
+                       recast_scale_min_max = [], scale_in_abs_after_recasting = False, legend=False, label=""):
+
         """
         This add point data to the map.
 
@@ -1087,6 +1141,15 @@ class MapFigure(object):
             offset (int/float): offset of the text below the point
             font_size (int): everything is in the title
             zorder (int): priority for plotting
+            marker (str): the marker used in the plots
+            discrete_colours (bool): If true, the colourmap will be discrete
+            NColours (int) The number of colours n the colourmap
+            scale_in_absolute (bool): scale the data using absolute values
+            abs (bool): color the data using absolute values
+            unicolor (str): set a unique color in case of no plotting column - Default: blue
+            color_abs: get the absolute data for scale
+            recast_scale_min_max: recast the min and max of the array before scaling
+            scale_in_abs_after_recasting: give the abolute value of scaling after recasting the data
 
         Author: SMM, BG
         """
@@ -1099,27 +1162,41 @@ class MapFigure(object):
         EPSG_string = self._RasterList[0]._EPSGString
         print("I am going to plot some points for you. The EPSG string is:"+EPSG_string)
 
-        # convert to easting and northing
-        [easting,northing] = thisPointData.GetUTMEastingNorthing(EPSG_string)
+
+        # convert to easting and northing or pull easting northing from file
+        # I had an old file that didnt report lat/long so pull directly if lat/lon not found
+        # MDH 1/3/18
+        try:
+            [easting,northing] = thisPointData.GetUTMEastingNorthing(EPSG_string)
+        except:
+            # check to see if easting and northing data already exists
+            easting = thisPointData.QueryData("easting").as_matrix().astype(float)
+            northing = thisPointData.QueryData("northing").as_matrix().astype(float)
+
         print("I got the easting and northing")
 
-        print("EASTING AND NORTHING CHECK")
-        print(easting[0],northing[0])
-
         # check if the column for plotting exists
-        this_data = thisPointData.QueryData(column_for_plotting)
+        # BG - 16/01/2018 - Adding some exception management. Sometimes, a list can be returned by QueryData and crash here
+        try:
+            this_data = thisPointData.QueryData(column_for_plotting).values
+        except AttributeError:
+            this_data = thisPointData.QueryData(column_for_plotting)
+
         print("I got the data column you wanted")
+        if(color_abs):
+            print("I will color your data using its absolute value")
+            this_data = np.abs(this_data)
         # Log the color if required
         if(colour_log):
             this_data = np.log10(this_data)
-            print("I logged (is it a verb?) your colour data, the minimum is %s and the maximum is %s" %(np.nanmin(this_data), np.nanmax(this_data)))
+            print("I have taken the log your colour data, the minimum is %s and the maximum is %s" %(np.nanmin(this_data), np.nanmax(this_data)))
 
         # Now the data for scaling. Point size will be scaled by these data
-
-
         scale_data = thisPointData.QueryData(column_for_scaling)
         print("I also got the data for scaling, which is in column "+column_for_scaling)
         scale_data = np.asarray(scale_data)
+        if(scale_in_absolute):
+            scale_data = np.abs(scale_data)
         #scale_data = scale_data.flatten()
         print("The size of the array is: ")
         print(scale_data.shape)
@@ -1145,6 +1222,16 @@ class MapFigure(object):
                 print("There doesn't seem to be any scaling data. Reverting to manual size.")
                 point_scale = manual_size
             else:
+
+                if(scale_in_abs_after_recasting):
+                    scale_data = np.abs(scale_data)
+
+                if(len(recast_scale_min_max) == 2):
+                    scale_data[scale_data < recast_scale_min_max[0]] = recast_scale_min_max[0]
+                    scale_data[scale_data > recast_scale_min_max[1]] = recast_scale_min_max[1]
+
+
+
                 max_sd = np.nanmax(scale_data)
                 min_sd = np.nanmin(scale_data)
 
@@ -1164,10 +1251,16 @@ class MapFigure(object):
             print("I will not scale your points.")
             point_scale = manual_size
 
+
+
         print("I will plot the points now.")
         if len(this_data) == 0 or len(this_data) != len(easting):
             print("I am only plotting the points.")
-            sc = self.ax_list[0].scatter(easting,northing,s=point_scale, c="blue",cmap=this_colourmap,edgecolors='none', alpha = alpha,zorder=zorder)
+            unicolor = unicolor
+            sc = self.ax_list[0].scatter(easting,northing,s=point_scale, c= unicolor,cmap=this_colourmap,edgecolors='none', alpha = alpha,zorder=zorder, marker = marker)
+            if(black_contours):
+                self.ax_list[0].scatter(easting,northing,s=point_scale,lw = 0.3, edgecolors='k',facecolor = "none", alpha = alpha,zorder=zorder, marker = marker)
+
         else:
             print("I will colour by the points")
             if(colour_manual_scale != []):
@@ -1179,17 +1272,38 @@ class MapFigure(object):
                     #scalarMap.set_array(tps_color)
                     #this_colourmap = scalarMap
                     #sc = self.ax_list[0].scatter(easting,northing,s=point_scale, c=tps_color,cmap=this_colourmap,edgecolors='none', alpha = alpha)
-                    sc = self.ax_list[0].scatter(easting,northing,s=point_scale, c=this_data,cmap=this_colourmap,norm=cNorm,edgecolors='none', alpha = alpha,zorder=zorder)
+                    sc = self.ax_list[0].scatter(easting,northing,s=point_scale, c=this_data,cmap=this_colourmap,norm=cNorm,edgecolors='none', alpha = alpha,zorder=zorder, marker = marker)
+                    if(black_contours):
+
+                        self.ax_list[0].scatter(easting,northing,s=point_scale,lw = 0.3,edgecolors='k',facecolor = "none",norm=cNorm, alpha = alpha,zorder=zorder, marker = marker)
 
                 else:
                     print("Your colour_log_manual_scale should be something like [min,max], aborting")
                     quit()
             else:
-                sc = self.ax_list[0].scatter(easting,northing,s=point_scale, c=this_data,cmap=this_colourmap,edgecolors='none', alpha = alpha,zorder=zorder)
+                #sc = self.ax_list[0].scatter(easting,northing,s=point_scale, c=this_data,cmap=this_colourmap,edgecolors='none', alpha = alpha,zorder=zorder, marker = marker)
+                if discrete_colours:
+                    # make a color map of fixed colors
+                    NUM_COLORS = NColours
+
+                    this_cmap = this_colourmap
+                    cNorm  = colors.Normalize(vmin=0, vmax=NUM_COLORS-1)
+                    plt.cm.ScalarMappable(norm=cNorm, cmap=this_colourmap)
+                    channel_data = [x % NUM_COLORS for x in this_data]
+
+                    sc = self.ax_list[0].scatter(easting,northing,s=point_scale, c=channel_data,cmap=this_colourmap, norm=cNorm, alpha = alpha,zorder=zorder)
+                    if(black_contours):
+                        sc = self.ax_list[0].scatter(easting,northing,s=point_scale,lw = 0.3, edgecolors = "k", facecolor = "none", norm=cNorm, alpha = alpha,zorder=zorder)
+
+                else:
+                    sc = self.ax_list[0].scatter(easting,northing,s=point_scale, c=this_data,cmap=this_colourmap,edgecolors='none', alpha = alpha,zorder=zorder, marker = marker)
+                    if(black_contours):
+                        sc = self.ax_list[0].scatter(easting,northing,s=point_scale,lw = 0.3, edgecolors='k',facecolor = "none", alpha = alpha,zorder=zorder, marker = marker)
+
 
         # Setting the labelling
         if(label_field != "None"):
-            print("labelling from this tool is not available yet, Boris is working on it")
+            # print("labelling from this tool is not available yet, Boris is working on it")
             tg = thisPointData.QueryData(label_field)
             print(tg)
             for i in range(len(easting)):
@@ -1214,6 +1328,77 @@ class MapFigure(object):
             if self.colourbar_location != "None":
                 print("Let me add a colourbar for your point data")
                 self.ax_list = self.add_point_colourbar(self.ax_list,sc,cmap=this_colourmap, colorbarlabel = colorbarlabel)
+
+        if legend:
+            print("Trying to update legend!")
+            legend_line = mlines.Line2D([],[], color=unicolor, lw=min_point_size, label=label)
+            self.legend_handles_list.append(legend_line)
+
+    def add_line_data(self, ThisLineFile, linestyle = '-', edgecolour = "k", linewidth=0.5, zorder = 1, alpha=1, legend=False, label=""):
+        """
+        This adds line data from a named shapefile to the map.
+
+        Args:
+            ThisLineFile (object): a shapefile for plotting lines.
+            linestyle: matplotlib line style
+            edgecolour (string): colour of the lines around the basins.
+            linewidth(float): width of the line around the basins.
+            zorder (int): priority for plotting
+            alpha (float): transparency (between 0 and 1).
+
+        Author: MDH
+        """
+
+        # import linestring
+        from shapely.geometry import shape, LineString
+        import fiona
+
+        # Get the axis limits to assert after
+        this_xlim = self.ax_list[0].get_xlim()
+        this_ylim = self.ax_list[0].get_ylim()
+
+        EPSG_string = self._RasterList[0]._EPSGString
+        print("I am going to plot some lines for you. The EPSG string is:"+EPSG_string)
+
+        # load the data
+        with fiona.open(ThisLineFile) as input:
+            for feature in input:
+                geom = shape(feature['geometry'])
+                x, y = geom.xy
+                self.ax_list[0].plot(x,y,linestyle,color=edgecolour,lw=linewidth, zorder=zorder, alpha=alpha)
+
+        # Annoying but the plot resets the extents so you need to reassert them
+        self.ax_list[0].set_xlim(this_xlim)
+        self.ax_list[0].set_ylim(this_ylim)
+
+        # get legend handle
+        if legend:
+            print("Trying to update legend!")
+            legend_line = mlines.Line2D([],[], color=edgecolour, lw=linewidth, label=label)
+            self.legend_handles_list.append(legend_line)
+
+    def plot_segment_of_knickzone(self, thisPointData, color = "k", lw = 1):
+        # Get the axis limits to assert after
+        this_xlim = self.ax_list[0].get_xlim()
+        this_ylim = self.ax_list[0].get_ylim()
+
+        EPSG_string = self._RasterList[0]._EPSGString
+        print("I am going to plot some points for you. The EPSG string is:"+EPSG_string)
+
+        # convert to easting and northing
+        [easting,northing] = thisPointData.GetUTMEastingNorthing(EPSG_string)
+        print("I got the easting and northing")
+
+        if(len(easting)>1):
+            self.ax_list[0].plot(easting,northing, c = color, lw = lw)
+        elif (len(easting) == 1):
+
+            self.ax_list[0].scatter(easting,northing, c = color, s = lw * 0.2)
+
+        # Annoying but the scatter plot resets the extents so you need to reassert them
+        self.ax_list[0].set_xlim(this_xlim)
+        self.ax_list[0].set_ylim(this_ylim)
+
 
     def add_channel_network_from_points(self, thisPointData, colour='k', alpha = 0.7, zorder=1):
         """
@@ -1292,7 +1477,7 @@ class MapFigure(object):
             EPSG_string = self._RasterList[0]._EPSGString
             print("EPSG_string is: "+EPSG_string)
             [this_easting,this_northing] = thisPointData.GetUTMEastingNorthing(EPSG_string)
-            print(this_easting, this_northing)
+            print((this_easting, this_northing))
             thinned_data = thisPointData.QueryData(column_for_plotting, PANDEX=PANDEX)
             print(thinned_data)
 
@@ -1329,10 +1514,10 @@ class MapFigure(object):
 
         new_points = {}
         if label_dict:
-            for key, label in label_dict.iteritems():
+            for key, label in label_dict.items():
                 # get the point for this key
                 new_points[label] = points.get(key)
-                print(key, label, new_points[label])
+                print((key, label, new_points[label]))
             points = new_points
 
         # A list of text objects
@@ -1346,7 +1531,7 @@ class MapFigure(object):
         bbox_props = dict(boxstyle="Round4,pad=0.1", fc="w", ec=border_colour, lw=0.5,alpha = alpha)
 
         print(points)
-        for key, point in points.iteritems():
+        for key, point in points.items():
             x = point.x
             y = point.y
             texts.append(self.ax_list[0].text(point.x, point.y, str(key), fontsize=8, color=text_colour,alpha=alpha,bbox=bbox_props, ha= 'center',zorder=zorder))
@@ -1389,7 +1574,7 @@ class MapFigure(object):
         # Format the bounding box
         bbox_props = dict(boxstyle="Round4,pad=0.1", fc="w", ec=border_colour, lw=0.5,alpha = alpha)
 
-        for key, point in points.iteritems():
+        for key, point in points.items():
             x = point.x
             y = point.y
 
@@ -1438,16 +1623,9 @@ class MapFigure(object):
         new_X = X - dx/2
         new_Y = Y - dy/2
 
-        print(dx,dy)
+        print((dx,dy))
 
         self.ax_list[0].quiver(new_X,new_Y,dx,dy,angles='xy',scale_units='xy',scale=1, width=0.002)
-
-        # for i,angle in enumerate(az_radians):
-        #     dy = arrow_length*np.cos(angle)
-        #     dx = arrow_length*np.sin(angle)
-        #     print azimuths[i], X[i], Y[i],dx, dy
-        #     # now plot the arrow
-        #     self.ax_list[0].arrow(X[i],Y[i],dx,dy,head_width=0.05,head_length=0.1)
 
     def add_strike_and_dip_symbols(self,dip_df,colour='black',linewidth=1,alpha=1, symbol_length=10):
         """
@@ -1505,10 +1683,12 @@ class MapFigure(object):
             # add the dip labelling
             self.ax_list[0].text(X[i], Y[i]-symbol_length, dips[i], fontsize=4, color=colour,alpha=alpha,bbox=bbox_props, ha= 'center',zorder=2)
 
-    def plot_polygon_outlines(self,polygons, colour='black', linewidth=1, alpha = 1):
+
+    def plot_polygon_outlines(self,polygons, colour='black', linewidth=1, alpha = 1, legend=False, label=""):
         """
         This function plots an outline of a series of shapely polygons
         Modified to also plot shapely Multipolygons if passed.
+        Added ability to create legend item
 
         Args:
             ax_list: list of axes
@@ -1520,7 +1700,7 @@ class MapFigure(object):
 
         print('Plotting the polygon outlines...')
 
-        for key, poly in polygons.iteritems():
+        for key, poly in polygons.items():
             if poly.geom_type == 'Polygon':
                 x,y = poly.exterior.xy
                 self.ax_list[0].plot(x,y, c=colour, lw = linewidth, alpha = alpha)
@@ -1528,6 +1708,12 @@ class MapFigure(object):
                 for singlepoly in poly:
                     x,y = singlepoly.exterior.xy
                     self.ax_list[0].plot(x,y, c=colour, lw = linewidth, alpha = alpha)
+
+        # get legend handles
+        if legend:
+            print("Trying to update legend!")
+            legend_line = mlines.Line2D([],[], color=colour, lw=linewidth, label=label)
+            self.legend_handles_list.append(legend_line)
 
     def plot_filled_polygons(self,polygons, facecolour='green', edgecolour='black', linewidth=1, alpha=0.5):
         """
@@ -1546,7 +1732,7 @@ class MapFigure(object):
         print('Plotting the polygons...')
 
         #patches = []
-        for key, poly in polygons.iteritems():
+        for key, poly in polygons.items():
             this_patch = PolygonPatch(poly, fc=facecolour, ec=edgecolour, alpha=alpha)
             self.ax_list[0].add_patch(this_patch)
 
@@ -1588,7 +1774,7 @@ class MapFigure(object):
                  FigFormat = 'png',Fig_dpi = 100,
                  axis_style = "Normal", transparent=False,
                  adjust_cbar_characters=True,
-                 fixed_cbar_characters=4):
+                 fixed_cbar_characters=4, return_fig = False, hide_ticklabels=False):
         """
         This saves the figure to file.
 
@@ -1601,6 +1787,8 @@ class MapFigure(object):
             transparent (bool): If true the background is transparent (i.e., you don't get a white rectangle in the background)
             adjust_cbar_characters (bool): If true, adjust the spacing of the colourbar to account for the characters in the cbar label
             fixed_cbar_characters (int): ONLY used if adjust_cbar_characters=False. The number of characters to pad the cbar for.
+            return_fig (bool): return the figure rather than saving a plot. In case you want some personnalisation. CAreful, if your personalisation may be useful for everyone, just code it for everyone.
+            hide_ticklabels (bool): if true, hide the tick labels
 
         Author: SMM
         """
@@ -1656,9 +1844,10 @@ class MapFigure(object):
         fig.set_size_inches(fig_size_inches[0], fig_size_inches[1])
         self.ax_list[0].set_position(map_axes)
 
-        # Annoying but the scatter plot resets the extens so you need to reassert them
+        # Annoying but the scatter plot resets the extents so you need to reassert them
         self.ax_list[0].set_xlim(self._xmin,self._xmax)
-        self.ax_list[0].set_ylim(self._ymax,self._ymin)
+        #self.ax_list[0].set_ylim(self._ymax,self._ymin)
+        self.ax_list[0].set_ylim(self._ymin,self._ymax)
 
         # add the title
         if self.title != "None":
@@ -1674,13 +1863,20 @@ class MapFigure(object):
         # if cbar_axes != None:
         #     self.ax_list[-1].set_position(cbar_axes)
 
-        fig.savefig(FigFileName, format=FigFormat, dpi=Fig_dpi, transparent=transparent)
+        if hide_ticklabels:
+            self.ax_list[0].get_xaxis().set_ticks([])
+            self.ax_list[0].get_yaxis().set_ticks([])
+            self.ax_list[0].set_xlabel("")
+            self.ax_list[0].set_ylabel("")
 
-        #self.fig.show()
-        #print("The figure format is: " + self.FigFormat)
-        #plt.savefig(self.FigFileName,format=self.FigFormat)
-        fig.clf()
-        plt.close(fig)
+        # I am returning the figure if wanted, otherwise I am saving the figure and clearing it
+        if(return_fig):
+            return fig
+        else:
+            # saving and closing
+            fig.savefig(FigFileName, format=FigFormat, dpi=Fig_dpi, transparent=transparent)
+            fig.clf()
+            plt.close(fig)
 
     def SetRCParams(self,label_size):
         """
@@ -1697,3 +1893,21 @@ class MapFigure(object):
         rcParams['font.sans-serif'] = ['arial']
         rcParams['font.size'] = label_size
         rcParams['lines.linewidth']  = 1.5
+
+    def add_legend(self,location="best", handlelength=1):
+        """
+        This intiates the legend and sets some RCParams
+
+        Args:
+            location: position of the legend, defaults to best position
+
+        MDH
+
+        """
+
+        #handles, labels = self.ax_list[0].get_legend_handle_labels()
+        #print(handles)
+        #print(labels)
+        rcParams['legend.loc'] = location
+        rcParams['legend.handlelength'] = handlelength
+        self.ax_list[0].legend(handles=self.legend_handles_list)

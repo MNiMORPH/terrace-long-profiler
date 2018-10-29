@@ -2,6 +2,8 @@
 # FJC 01/11/17
 
 # import modules
+import matplotlib
+matplotlib.use('Agg')
 import sys
 import os
 
@@ -52,6 +54,9 @@ def main(argv):
     if not args.fname_prefix:
         print("WARNING! You haven't supplied your DEM name. Please specify this with the flag '-fname'")
         sys.exit()
+
+    # modify the terrace info file to filter some terraces.
+    
 
     if args.long_profiler:
         if not args.digitised_terraces:
