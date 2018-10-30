@@ -1002,6 +1002,27 @@ def read_terrace_csv(DataDirectory,fname_prefix):
 
     return df
 
+def read_terrace_csv_filtered(DataDirectory,fname_prefix):
+    """
+    This function reads in the csv file with the extension "_terrace_info.csv"
+    and returns it as a pandas dataframe
+
+    Args:
+        DataDirectory (str): the data directory
+        fname_prefix (str): the name of the DEM
+
+    Returns:
+        pandas dataframe with the terrace info
+
+    Author: FJC
+    """
+    csv_suffix = '_terrace_info_filtered.csv'
+    fname = DataDirectory+fname_prefix+csv_suffix
+
+    df = pd.read_csv(fname)
+
+    return df
+
 def read_channel_csv(DataDirectory,fname_prefix):
     """
     This function reads in the csv file with the extension "_baseline_channel_info.csv"

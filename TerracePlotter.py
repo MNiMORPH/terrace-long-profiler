@@ -157,32 +157,37 @@ def SelectTerracePointsFromCentrelines(DataDirectory,shapefile_name,fname_prefix
 
     return new_df
 
-def filter_terraces(terrace_df,min_size=5000, max_size=1000000):
+def filter_terraces(DataDirectory, fname_prefix, min_size=5000, min_elev = 0, max_elev = 100000000):
     """
     This function takes the initial terrace dataframe and sorts it to remove terraces
     that are too small.
 
     Args:
-        terrace_df: pandas dataframe with the terrace info
+        df: pandas dataframe with the terrace info
         min_size (int): minimum n of pixels in each terrace
-        max_size (int): max n of pixels in each terrace
+        min_elev (int): minimum relative elevation of terraces
+        max_elev (int): maximum relative elevation of terraces
 
     Returns:
         dataframe with filtered terrace info.
 
     Author: FJC
     """
+    df = H.read_terrace_csv(DataDirectory,fname_prefix)
     # first get the unique terrace IDs
-    terraceIDs = terrace_df.TerraceID.unique()
+    terraceIDs = df.TerraceID.unique()
 
     # loop through unique IDs and check how many rows correspond to this ID, then
     # remove any that are too small
-    for i in terraceIDs:
-        n_pixels = len(terrace_df[terrace_df['TerraceID'] == i])
-        if n_pixels < min_size or n_pixels > max_size:
-            terrace_df = terrace_df[terrace_df['TerraceID'] != i]
+    new_df = df.loc[df.groupby('id').filter(lambda x: len(x) >= min size).index]
 
-    return terrace_df
+    # remove any pixels greater or less than the maximum elevation
+    new_df = new_df[new_df['ChannelRelief'] > min_elev]
+    new_df = new_df[new_df['ChannelRelief'] < max_elev]
+
+    new_df = pd.to_csv(DataDirectory+fname_prefix+'_terrace_info_filtered.csv')
+
+    return new_df
 
 def write_dip_and_dipdir_to_csv(DataDirectory,fname_prefix, digitised_terraces=False, shapefile_name=None):
     """
@@ -197,7 +202,7 @@ def write_dip_and_dipdir_to_csv(DataDirectory,fname_prefix, digitised_terraces=F
     Author: FJC
     """
     # read in the terrace csv
-    terraces = H.read_terrace_csv(DataDirectory,fname_prefix)
+    terraces = H.read_terrace_csv_filtered(DataDirectory,fname_prefix)
     if digitised_terraces:
         # check if you've already done the selection, if so just read in the csv
         print ("File name is", DataDirectory+fname_prefix+'_terrace_info_shapefiles.csv')
@@ -379,8 +384,7 @@ def long_profiler(DataDirectory,fname_prefix, min_size=5000, FigFormat='png', si
     ax = fig.add_subplot(gs[5:100,10:95])
 
     # read in the terrace csv
-    terraces = H.read_terrace_csv(DataDirectory,fname_prefix)
-    filter_terraces(terraces, min_size)
+    terraces = H.read_terrace_csv_filtered(DataDirectory,fname_prefix)
 
     # read in the baseline channel csv
     lp = H.read_channel_csv(DataDirectory,fname_prefix)
@@ -450,15 +454,13 @@ def long_profiler_dist(DataDirectory,fname_prefix, min_size=5000, FigFormat='png
     ax = plt.subplot(111)
 
     # read in the terrace csv
-    terraces = H.read_terrace_csv(DataDirectory,fname_prefix)
+    terraces = H.read_terrace_csv_filtered(DataDirectory,fname_prefix)
     if digitised_terraces:
         # check if you've already done the selection, if so just read in the csv
         if os.path.isfile(DataDirectory+fname_prefix+'_terrace_info_shapefiles.csv'):
             terraces = pd.read_csv(DataDirectory+fname_prefix+'_terrace_info_shapefiles.csv')
         else:
             terraces = SelectTerracesFromShapefile(DataDirectory,shapefile_name,fname_prefix)
-    else:
-        filter_terraces(terraces, min_size)
 
     # read in the baseline channel csv
     lp = H.read_channel_csv(DataDirectory,fname_prefix)
@@ -637,7 +639,7 @@ def MakeRasterPlotTerraceIDs(DataDirectory,fname_prefix, FigFormat='png', size_f
     TerraceIDName = fname_prefix+'_terrace_IDs'+raster_ext
 
     # get the terrace csv
-    terraces = H.read_terrace_csv(DataDirectory,fname_prefix)
+    terraces = H.read_terrace_csv_filtered(DataDirectory,fname_prefix)
     terraceIDs = sorted(list(set(list(terraces.TerraceID))))
     xTerraces = []
     zTerraces = []
@@ -652,31 +654,26 @@ def MakeRasterPlotTerraceIDs(DataDirectory,fname_prefix, FigFormat='png', size_f
         _z = terraces['Elevation'].values[_terrace_subset]
         _x_unique = sorted(list(set(list(_x))))
         _z_unique = []
-        # Filter
-        if len(_x) > 50 and len(_x_unique) > 1 and len(_x_unique) < 1000:
-            #print np.max(np.diff(_x_unique))
-            #if len(_x_unique) > 10 and len(_x_unique) < 1000 \
-            #and :
-            for _x_unique_i in _x_unique:
-                #_y_unique_i = np.min(np.array(_y)[_x == _x_unique_i])
-                #_z_unique.append(np.min(_z[_y == _y_unique_i]))
-                _z_unique.append(np.min(_z[_x == _x_unique_i]))
-            if np.mean(np.diff(_z_unique)/np.diff(_x_unique)) < 10:
-                xTerraces.append(_x_unique)
-                zTerraces.append(_z_unique)
-                newIDs.append(terraceID)
+        for _x_unique_i in _x_unique:
+            #_y_unique_i = np.min(np.array(_y)[_x == _x_unique_i])
+            #_z_unique.append(np.min(_z[_y == _y_unique_i]))
+            _z_unique.append(np.min(_z[_x == _x_unique_i]))
+        if np.mean(np.diff(_z_unique)/np.diff(_x_unique)) < 10:
+            xTerraces.append(_x_unique)
+            zTerraces.append(_z_unique)
+            newIDs.append(terraceID)
 
     n_colours=len(newIDs)
 
     # create the map figure
-    MF = MapFigure(HillshadeName, DataDirectory, coord_type='UTM_km', colourbar_location='right')
+    MF = MapFigure(HillshadeName, DataDirectory, coord_type='UTM_km', colourbar_location='None')
     # add the terrace drape
     terrace_cmap = plt.cm.rainbow
     #terrace_cmap = colours.cmap_discretize(n_colours,terrace_cmap)
     MF.add_drape_image(TerraceIDName, DataDirectory, colourmap = terrace_cmap, discrete_cmap=True, cbar_type=int, n_colours=n_colours, colorbarlabel="Terrace ID", alpha=0.8)
 
     ImageName = DataDirectory+fname_prefix+'_terrace_IDs_raster_plot.'+FigFormat
-    MF.save_fig(fig_width_inches = fig_width_inches, FigFileName = ImageName, FigFormat=FigFormat, Fig_dpi = 300) # Save the figure
+    MF.save_fig(fig_width_inches = fig_width_inches, FigFileName = ImageName, FigFormat=FigFormat, Fig_dpi = 1000) # Save the figure
 
 def MakeRasterPlotTerraceElev(DataDirectory,fname_prefix, FigFormat='png', size_format='ESURF'):
     """
@@ -728,7 +725,7 @@ def MakeRasterPlotTerraceElev(DataDirectory,fname_prefix, FigFormat='png', size_
     TerraceElevName = fname_prefix+'_terrace_relief_final'+raster_ext
 
     # get the terrace csv
-    terraces = H.read_terrace_csv(DataDirectory,fname_prefix)
+    terraces = H.read_terrace_csv_filtered(DataDirectory,fname_prefix)
     terraceIDs = sorted(list(set(list(terraces.TerraceID))))
     xTerraces = []
     zTerraces = []
@@ -743,31 +740,26 @@ def MakeRasterPlotTerraceElev(DataDirectory,fname_prefix, FigFormat='png', size_
         _z = terraces['Elevation'].values[_terrace_subset]
         _x_unique = sorted(list(set(list(_x))))
         _z_unique = []
-        # Filter
-        if len(_x) > 50 and len(_x_unique) > 1 and len(_x_unique) < 1000:
-            #print np.max(np.diff(_x_unique))
-            #if len(_x_unique) > 10 and len(_x_unique) < 1000 \
-            #and :
-            for _x_unique_i in _x_unique:
-                #_y_unique_i = np.min(np.array(_y)[_x == _x_unique_i])
-                #_z_unique.append(np.min(_z[_y == _y_unique_i]))
-                _z_unique.append(np.min(_z[_x == _x_unique_i]))
-            if np.mean(np.diff(_z_unique)/np.diff(_x_unique)) < 10:
-                xTerraces.append(_x_unique)
-                zTerraces.append(_z_unique)
-                newIDs.append(terraceID)
+        for _x_unique_i in _x_unique:
+            #_y_unique_i = np.min(np.array(_y)[_x == _x_unique_i])
+            #_z_unique.append(np.min(_z[_y == _y_unique_i]))
+            _z_unique.append(np.min(_z[_x == _x_unique_i]))
+        if np.mean(np.diff(_z_unique)/np.diff(_x_unique)) < 10:
+            xTerraces.append(_x_unique)
+            zTerraces.append(_z_unique)
+            newIDs.append(terraceID)
 
     n_colours=len(newIDs)
 
     # create the map figure
-    MF = MapFigure(HillshadeName, DataDirectory, coord_type='UTM_km', colourbar_location='right')
+    MF = MapFigure(HillshadeName, DataDirectory, coord_type='UTM_km', colourbar_location='None')
     # add the terrace drape
     terrace_cmap = plt.cm.Reds
     #terrace_cmap = colours.cmap_discretize(n_colours,terrace_cmap)
     MF.add_drape_image(TerraceElevName, DataDirectory, colourmap = terrace_cmap, colorbarlabel="Elevation above channel (m)", alpha=0.8)
 
     ImageName = DataDirectory+fname_prefix+'_terrace_elev_raster_plot.'+FigFormat
-    MF.save_fig(fig_width_inches = fig_width_inches, FigFileName = ImageName, FigFormat=FigFormat, Fig_dpi = 300) # Save the figure
+    MF.save_fig(fig_width_inches = fig_width_inches, FigFileName = ImageName, FigFormat=FigFormat, Fig_dpi = 1000) # Save the figure
 
 def MakeRasterPlotTerraceDips(DataDirectory,fname_prefix,min_size=5000,FigFormat='png',size_format='ESURF'):
     """
@@ -822,8 +814,7 @@ def MakeRasterPlotTerraceDips(DataDirectory,fname_prefix,min_size=5000,FigFormat
     TerraceElevName = fname_prefix+'_terrace_relief_final'+raster_ext
 
     # get the terrace csv
-    terraces = H.read_terrace_csv(DataDirectory,fname_prefix)
-    filter_terraces(terraces)
+    terraces = H.read_terrace_csv_filtered(DataDirectory,fname_prefix)
 
     # get the terrace IDs
     terraceIDs = terraces.TerraceID.unique()
