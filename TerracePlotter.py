@@ -179,7 +179,7 @@ def filter_terraces(DataDirectory, fname_prefix, min_size=5000, min_elev = 0, ma
 
     # loop through unique IDs and check how many rows correspond to this ID, then
     # remove any that are too small
-    new_df = df.loc[df.groupby('id').filter(lambda x: len(x) >= min size).index]
+    new_df = df.loc[df.groupby('id').filter(lambda x: len(x) >= min_size).index]
 
     # remove any pixels greater or less than the maximum elevation
     new_df = new_df[new_df['ChannelRelief'] > min_elev]
