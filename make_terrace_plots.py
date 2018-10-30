@@ -60,6 +60,12 @@ def main(argv):
         print("WARNING! You haven't supplied your DEM name. Please specify this with the flag '-fname'")
         sys.exit()
 
+    # print the arguments that you used to an output file for reproducibility
+    with open(DataDirectory+args.fname_prefix+'_report.csv', 'w') as output:
+        for arg in vars(args):
+            output.write(str(arg)+','+str(getattr(args, arg))+'\n')
+        output.close()
+
     # modify the terrace info file to filter some terraces.
     TerracePlotter.filter_terraces(this_dir, args.fname_prefix, args.min_size, args.min_elev, args.max_elev)
 
