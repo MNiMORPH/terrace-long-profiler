@@ -30,7 +30,7 @@ def CreateFigure(FigSizeFormat="default", AspectRatio=16./9.):
     Args:
         FigSizeFormat: the figure size format according to journal for which the figure is intended
             values are geomorphology,ESURF, ESPL, EPSL, JGR, big
-            default is ESURF
+            ddefault is ESURF
 
         AspectRatio: The shape of the figure determined by the aspect ratio, default is 16./9.
 
@@ -179,13 +179,13 @@ def filter_terraces(DataDirectory, fname_prefix, min_size=5000, min_elev = 0, ma
 
     # loop through unique IDs and check how many rows correspond to this ID, then
     # remove any that are too small
-    new_df = df.loc[df.groupby('id').filter(lambda x: len(x) >= min_size).index]
+    new_df = df.loc[df.groupby('TerraceID').filter(lambda x: len(x) >= min_size).index]
 
     # remove any pixels greater or less than the maximum elevation
     new_df = new_df[new_df['ChannelRelief'] > min_elev]
     new_df = new_df[new_df['ChannelRelief'] < max_elev]
 
-    new_df = pd.to_csv(DataDirectory+fname_prefix+'_terrace_info_filtered.csv')
+    new_df.to_csv(DataDirectory+fname_prefix+'_terrace_info_filtered.csv')
 
     return new_df
 

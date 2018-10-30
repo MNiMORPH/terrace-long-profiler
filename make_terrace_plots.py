@@ -28,9 +28,9 @@ def main(argv):
     parser.add_argument("-fname", "--fname_prefix", type=str, help="The prefix of your DEM WITHOUT EXTENSION!!! This must be supplied or you will get an error.")
 
     # Some filtering info for terrace pixels
-    parser.add_argment("-min_size", "--min_size", type=int, help="The minimum size (in pixels) of a terrace patch. Default = 5", default=5)
-    parser.add_argment("-min_elev", "--min_elev", type=int, help="The minimum elevation above the channel of a terrace pixel. Default = 0", default=0)
-    parser.add_argment("-max_elev", "--max_elev", type=int, help="The maximum elevation above the channel of a terrace pixel. Default = large", default=10000000)
+    parser.add_argument("-min_size", "--min_size", type=int, help="The minimum size (in pixels) of a terrace patch. Default = 5", default=5)
+    parser.add_argument("-min_elev", "--min_elev", type=int, help="The minimum elevation above the channel of a terrace pixel. Default = 0", default=0)
+    parser.add_argument("-max_elev", "--max_elev", type=int, help="The maximum elevation above the channel of a terrace pixel. Default = large", default=10000000)
 
     # What sort of analyses you want to do
     parser.add_argument("-LP", "--long_profiler", type=bool, default=False, help="If this is true, I'll make plots of the terrace long profiles (Default = true)")
@@ -61,7 +61,7 @@ def main(argv):
         sys.exit()
 
     # print the arguments that you used to an output file for reproducibility
-    with open(DataDirectory+args.fname_prefix+'_report.csv', 'w') as output:
+    with open(this_dir+args.fname_prefix+'_report.csv', 'w') as output:
         for arg in vars(args):
             output.write(str(arg)+','+str(getattr(args, arg))+'\n')
         output.close()
