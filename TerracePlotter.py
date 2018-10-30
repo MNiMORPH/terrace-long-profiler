@@ -584,6 +584,91 @@ def long_profiler_centrelines(DataDirectory,fname_prefix, shapefile_name, FigFor
 
     plt.savefig(DataDirectory+fname_prefix+'_terrace_plot_centrelines.'+FigFormat,format=FigFormat,dpi=300)
 
+def MakeTerraceHeatMap(DataDirectory,fname_prefix, prec=100, bw_method=0.03, FigFormat='png', ages=""):
+    """
+    Function to make a heat map of the terrace pixels using Gaussian KDE.
+    see https://docs.scipy.org/doc/scipy-0.14.0/reference/generated/scipy.stats.gaussian_kde.html
+    for more details.
+
+    Args:
+        DataDirectory(str): the data directory
+        fname_prefix(str): prefix of your DEM
+        prec(int): the resolution for the KDE. Increase this to get a finer resolution, decrease for coarser.
+        bw_method: the method for determining the bandwidth of the KDE.  This is apparently quite sensitive to this.
+        Can either be "scott", "silverman" (where the bandwidth will be determined automatically), or a scalar. Default = 0.03
+        FigFormat(str): figure format, default = png
+        ages (str): Can pass in the name of a csv file with terrace ages which will be plotted on the profile. Must be in the same directory
+
+    FJC 26/03/18
+    """
+    import scipy.stats as st
+
+    # make a figure
+    fig = CreateFigure()
+    ax = plt.subplot(111)
+
+    # read in the terrace DataFrame
+    terrace_df = H.read_terrace_csv_filtered(DataDirectory,fname_prefix)
+    terrace_df = terrace_df[terrace_df['BaselineNode'] != -9999]
+
+    # read in the baseline channel csv
+    lp = H.read_channel_csv(DataDirectory,fname_prefix)
+    lp = lp[lp['Elevation'] != -9999]
+
+    # get the distance from outlet along the baseline for each terrace pixels
+    terrace_df = terrace_df.merge(lp, left_on = "BaselineNode", right_on = "node")
+    flow_dist = terrace_df['flow_distance']/1000
+    print(terrace_df)
+
+	## Getting the extent of our dataset
+    xmin = 0
+    xmax = flow_dist.max()
+    ymin = 0
+    ymax = terrace_df["Elevation"].max()
+
+    ## formatting the data in a meshgrid
+    X,Y = np.meshgrid(np.linspace(0,xmax,num = prec),np.linspace(0,ymax, num = prec))
+    positions = np.vstack([X.ravel(), Y.ravel()[::-1]]) # inverted Y to get the axis in the bottom left
+    values = np.vstack([flow_dist, terrace_df['Elevation']])
+    if len(values) == 0:
+        print("You don't have any terraces, I'm going to quit now.")
+    else:
+        # get the kernel density estimation
+        KDE = st.gaussian_kde(values, bw_method = bw_method)
+        Z = np.reshape(KDE(positions).T,X.shape)
+
+        # plot the density on the profile
+        cmap = cm.gist_heat_r
+        cmap.set_bad(alpha=0)
+        cb = ax.imshow(Z, interpolation = "None",  extent=[xmin, xmax, ymin, ymax], cmap=cmap, aspect = "auto")
+
+        # plot the main stem channel
+        ax.plot(lp['DistFromOutlet']/1000,lp['Elevation'],'k',lw=1)
+
+        # if present, plot the ages on the profile
+        if ages:
+            # read in the ages csv
+            ages_df = pd.read_csv(DataDirectory+ages)
+            upstream_dist = list(ages_df['upstream_dist'])
+            elevation = list(ages_df['elevation'])
+            ax.scatter(upstream_dist, elevation, s=8, c="w", edgecolors="k", label="$^{14}$C age (cal years B.P.)")
+            ax.legend(loc='upper left', fontsize=8, numpoints=1)
+
+        # set some plot lims
+        ax.set_xlim(xmin,xmax)
+        ax.set_ylim(ymin,ymax)
+        ax.set_xlabel('Flow distance (km)')
+        ax.set_ylabel('Elevation (m)')
+
+        # add a colourbar
+        cbar = plt.colorbar(cb,cmap=cmap,orientation='vertical')
+        cbar.set_label('Density')
+
+        # save the figure
+        plt.tight_layout()
+        plt.savefig(T_directory+fname_prefix+'_terrace_plot_heat_map.png',format=FigFormat,dpi=300)
+        plt.clf()
+
 #---------------------------------------------------------------------------------------------#
 # RASTER PLOTS
 # Functions to make raster plots of terrace attributes

@@ -66,8 +66,11 @@ def main(argv):
             output.write(str(arg)+','+str(getattr(args, arg))+'\n')
         output.close()
 
-    # modify the terrace info file to filter some terraces.
-    TerracePlotter.filter_terraces(this_dir, args.fname_prefix, args.min_size, args.min_elev, args.max_elev)
+    # check if the slopes file exists
+    filtered = DataDirectory+args.fname_prefix+'_terrace_info_filtered.csv'
+    if not os.path.isfile(filtered):
+        # modify the terrace info file to filter some terraces.
+        TerracePlotter.filter_terraces(this_dir, args.fname_prefix, args.min_size, args.min_elev, args.max_elev)
 
     if args.long_profiler:
         if not args.digitised_terraces:
@@ -82,6 +85,8 @@ def main(argv):
     if args.dips:
         TerracePlotter.write_dip_and_dipdir_to_csv(this_dir,args.fname_prefix, args.digitised_terraces, args.shapefile_name)
         # TerracePlotter.MakeRasterPlotTerraceDips(this_dir,args.fname_prefix,FigFormat=args.FigFormat,size_format=args.size_format)
+    if args.heat_map:
+        TerracePlotter.MakeTerraceHeatMap(this_dir, args.fname_prefix, prec=100, bw_method=0.03, FigFormat=args.FigFormat, ages="")
 
 #=============================================================================
 # This is just a welcome screen that is displayed if no arguments are provided.
