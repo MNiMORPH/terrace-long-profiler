@@ -35,6 +35,7 @@ def main(argv):
     # What sort of analyses you want to do
     parser.add_argument("-LP", "--long_profiler", type=bool, default=False, help="If this is true, I'll make plots of the terrace long profiles (Default = true)")
     parser.add_argument("-PR", "--plot_rasters", type=bool, default=False, help="If this is true, I'll make raster plots of the terrace locations (Default=false)")
+    parser.add_argument("-HM", "--heat_map", type=bool, default=False, help="if true I'll make a heat map of terrace locations along the river long profile")
     parser.add_argument("-dips", "--dips", type=bool,default=False, help="If this is true, I'll calculate the dip and dip direction of each terrace.")
     parser.add_argument("-DT", "--digitised_terraces", type=bool,default=False, help="If this is true I'll filter the terrace points using a shapefile of digitised terraces.")
     parser.add_argument("-shp", "--shapefile_name", type=str, default=None, help="The shapefile of digitised terraces. Must be supplied if you want to filter terraces by shapefile, obvz.")
@@ -67,7 +68,7 @@ def main(argv):
         output.close()
 
     # check if the slopes file exists
-    filtered = DataDirectory+args.fname_prefix+'_terrace_info_filtered.csv'
+    filtered = this_dir+args.fname_prefix+'_terrace_info_filtered.csv'
     if not os.path.isfile(filtered):
         # modify the terrace info file to filter some terraces.
         TerracePlotter.filter_terraces(this_dir, args.fname_prefix, args.min_size, args.min_elev, args.max_elev)
