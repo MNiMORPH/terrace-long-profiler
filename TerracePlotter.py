@@ -608,7 +608,7 @@ def MakeTerraceHeatMap(DataDirectory,fname_prefix, prec=100, bw_method=0.03, Fig
     ax = plt.subplot(111)
 
     # read in the terrace DataFrame
-    terrace_df = H.read_terrace_csv_filtered(DataDirectory,fname_prefix)
+    terrace_df = H.read_terrace_csv(DataDirectory,fname_prefix)
     terrace_df = terrace_df[terrace_df['BaselineNode'] != -9999]
 
     # read in the baseline channel csv

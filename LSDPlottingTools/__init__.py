@@ -17,5 +17,5 @@ from .adjust_text import *
 
 from . import colours as lsdcolours
 from . import labels as lsdlabels
-from . import scalebar as lsdscalebar
+#from . import scalebar as lsdscalebar
 from . import statsutilities as lsdstatsutilities
