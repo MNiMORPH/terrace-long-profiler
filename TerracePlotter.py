@@ -16,6 +16,7 @@ from matplotlib import colors as colors
 from shapely.geometry import shape, Polygon, Point, LineString
 import fiona
 import os
+from scipy.interpolate import UnivariateSpline
 
 def cmap_discretize(N, cmap):
     """Return a discrete colormap from the continuous colormap cmap.
@@ -45,195 +46,65 @@ def cmap_discretize(N, cmap):
 #---------------------------------------------------------------------------------------------#
 # Set up figure
 #---------------------------------------------------------------------------------------------#
-# def CreateFigure(FigSizeFormat="default", AspectRatio=16./9.):
-#     """
-#     This function creates a default matplotlib figure object
-#
-#     Args:
-#         FigSizeFormat: the figure size format according to journal for which the figure is intended
-#             values are geomorphology,ESURF, ESPL, EPSL, JGR, big
-#             ddefault is ESURF
-#
-#         AspectRatio: The shape of the figure determined by the aspect ratio, default is 16./9.
-#
-#     Returns:
-#         matplotlib figure object
-#
-#     Author: FJC
-#     """
-#     # set figure sizes (in inches) based on format
-#     if FigSizeFormat == "geomorphology":
-#         FigWidth_Inches = 6.25
-#     elif FigSizeFormat == "big":
-#         FigWidth_Inches = 16
-#     elif FigSizeFormat == "ESURF":
-#         FigWidth_Inches = 4.92
-#     elif FigSizeFormat == "ESPL":
-#         FigWidth_Inches = 7.08
-#     elif FigSizeFormat == "EPSL":
-#         FigWidth_Inches = 7.48
-#     elif FigSizeFormat == "JGR":
-#         FigWidth_Inches = 6.6
-#
-#     else:
-#         FigWidth_Inches = 4.92126
-#
-#     # Set up fonts for plots
-#     rcParams['font.family'] = 'sans-serif'
-#     rcParams['font.sans-serif'] = ['arial']
-#     rcParams['font.size'] = 10
-#     #rcParams['text.usetex'] = True
-#
-#     Fig = plt.figure(figsize=(FigWidth_Inches,FigWidth_Inches/AspectRatio))
-#
-#     return Fig
+def CreateFigure(FigSizeFormat="default", AspectRatio=16./9.):
+    """
+    This function creates a default matplotlib figure object
+
+    Args:
+        FigSizeFormat: the figure size format according to journal for which the figure is intended
+            values are geomorphology,ESURF, ESPL, EPSL, JGR, big
+            ddefault is ESURF
+
+        AspectRatio: The shape of the figure determined by the aspect ratio, default is 16./9.
+
+    Returns:
+        matplotlib figure object
+
+    Author: FJC
+    """
+    # set figure sizes (in inches) based on format
+    if FigSizeFormat == "geomorphology":
+        FigWidth_Inches = 6.25
+    elif FigSizeFormat == "big":
+        FigWidth_Inches = 16
+    elif FigSizeFormat == "ESURF":
+        FigWidth_Inches = 4.92
+    elif FigSizeFormat == "ESPL":
+        FigWidth_Inches = 7.08
+    elif FigSizeFormat == "EPSL":
+        FigWidth_Inches = 7.48
+    elif FigSizeFormat == "JGR":
+        FigWidth_Inches = 6.6
+
+    else:
+        FigWidth_Inches = 4.92126
+
+    # Set up fonts for plots
+    rcParams['font.family'] = 'sans-serif'
+    rcParams['font.sans-serif'] = ['arial']
+    rcParams['font.size'] = 10
+    #rcParams['text.usetex'] = True
+
+    Fig = plt.figure(figsize=(FigWidth_Inches,FigWidth_Inches/AspectRatio))
+
+    return Fig
 # #---------------------------------------------------------------------------------------------#
 # ANALYSIS FUNCTIONS
 # Functions to analyse the terrace info
 #---------------------------------------------------------------------------------------------#
 
-def SelectTerracesFromShapefile(DataDirectory,shapefile_name,fname_prefix):
-    """
-    This function takes in a shapefile of digitised terraces and
-    uses it to filter the terrace DF.  Only pixels within each
-    shapefile are kept, and they are assigned a new ID based on the
-    ID of the shapefile polygons.
-
-    Args:
-        DataDirectory (str): the data directory
-        shapefile_name (str): the name of the shapefile
-        fname_prefix (str): prefix of the DEM
-
-    Returns: terrace df filtered by the digitised terraces
-
-    Author: FJC
-    """
-    # first get the terrace df
-    terrace_df = pd.read_csv(DataDirectory+fname_prefix+"_terrace_info.csv")
-
-    # now get the shapefile with the digitised terraces
-    digitised_terraces = pd.read_csv(DataDirectory+shapefile_name)
-
-    # for each point in the df, need to check if it is in one of the polygons. This will probably be slow.
-
-    # set up the new terrace df
-    new_df = pd.DataFrame()
-
-    print("Filtering points by shapefile, this might take a while...")
-
-    for idx, row in terrace_df.iterrows():
-        this_point = Point(row['X'], row['Y'])
-        #print this_point
-        # check if this point is in one of the polygons
-        for id, polygon in digitised_terraces.items():
-            if polygon.contains(this_point):
-                # this point is within this terrace, keep it and assign a new ID number
-                row['TerraceID'] = id
-                new_df = new_df.append(row)
-
-    OutDF_name = "_terrace_info_shapefiles.csv"
-    OutDF_name = DataDirectory+fname_prefix+OutDF_name
-    new_df.to_csv(OutDF_name,index=False)
-
-    return new_df
-
-def SelectTerracePointsFromCentrelines(DataDirectory,shapefile_name,fname_prefix, distance=2):
-    """
-    This function takes in a shapefile of digitised terrace centrelines and finds points within a certain distance of the line. Returns as a df.
-
-    Args:
-        DataDirectory (str): the data directory
-        shapefile_name (str): the name of the shapefile
-        fname_prefix (str): prefix of the DEM
-
-    Returns: terrace df filtered by the digitised terraces
-
-    Author: FJC
-    """
-    # first get the terrace df
-    terrace_df = pd.read_csv(DataDirectory+fname_prefix+'_terrace_info.csv')
-
-    # now get the shapefile with the digitised terraces
-    centrelines = pd.read_csv(DataDirectory+shapefile_name)
-
-    # for each point in the df, need to check if it is in one of the polygons. This will probably be slow.
-
-    # set up the new terrace df
-    new_df = pd.DataFrame()
-
-    print("Filtering points by shapefile, this might take a while...")
-
-    for idx, row in terrace_df.iterrows():
-        this_point = Point(row['X'], row['Y'])
-        #print this_point
-        # check if this point is in one of the polygons
-        for id, line in centrelines.items():
-            if line.distance(this_point) < distance:
-                # this point is within this terrace, keep it and assign a new ID number
-                row['TerraceID'] = id
-                new_df = new_df.append(row)
-
-    OutDF_name = "_terrace_info_centrelines.csv"
-    OutDF_name = DataDirectory+fname_prefix+OutDF_name
-    new_df.to_csv(OutDF_name,index=False)
-
-    return new_df
-
-def filter_terraces(DataDirectory, fname_prefix, min_size=5000, min_elev = 0, max_elev = 100000000):
-    """
-    This function takes the initial terrace dataframe and sorts it to remove terraces
-    that are too small.
-
-    Args:
-        df: pandas dataframe with the terrace info
-        min_size (int): minimum n of pixels in each terrace
-        min_elev (int): minimum relative elevation of terraces
-        max_elev (int): maximum relative elevation of terraces
-
-    Returns:
-        dataframe with filtered terrace info.
-
-    Author: FJC
-    """
-    df = pd.read_csv(DataDirectory+fname_prefix+'_terrace_info.csv')
-    # first get the unique terrace IDs
-    terraceIDs = df.TerraceID.unique()
-
-    # loop through unique IDs and check how many rows correspond to this ID, then
-    # remove any that are too small
-    new_df = df.loc[df.groupby('TerraceID').filter(lambda x: len(x) >= min_size).index]
-
-    # remove any pixels greater or less than the maximum elevation
-    new_df = new_df[new_df['ChannelRelief'] > min_elev]
-    new_df = new_df[new_df['ChannelRelief'] < max_elev]
-
-    new_df.to_csv(DataDirectory+fname_prefix+'_terrace_info_filtered.csv')
-
-    return new_df
-
-def write_dip_and_dipdir_to_csv(DataDirectory,fname_prefix, digitised_terraces=False, shapefile_name=None):
+def write_dip_and_dipdir_to_csv(DataDirectory,fname_prefix):
     """
     Wrapper for dip and dipdir function
 
     Args:
         DataDirectory (str): the data directory
         fname_prefix (str): name of the DEM
-        digitised_terraces (bool): boolean to use digitised terrace shapefile
-        shapefile_name (str): name of shapefile
 
     Author: FJC
     """
     # read in the terrace csv
     terraces = pd.read_csv(DataDirectory+fname_prefix+'_terrace_info_filtered.csv')
-    if digitised_terraces:
-        # check if you've already done the selection, if so just read in the csv
-        print("File name is", DataDirectory+fname_prefix+'_terrace_info_shapefiles.csv')
-        if os.path.isfile(DataDirectory+fname_prefix+'_terrace_info_shapefiles.csv'):
-            terraces = pd.read_csv(DataDirectory+fname_prefix+'_terrace_info_shapefiles.csv')
-        else:
-            terraces = SelectTerracesFromShapefile(DataDirectory,shapefile_name,fname_prefix)
-    else:
-        filter_terraces(terraces, min_size)
 
     # get the terrace dip and dip dirs
     terrace_dips = get_terrace_dip_and_dipdir(terraces)
@@ -373,92 +244,27 @@ def get_terrace_areas(terrace_df, fname_prefix):
 # Functions to make XZ plots of terraces
 #---------------------------------------------------------------------------------------------#
 
-def long_profiler(DataDirectory,fname_prefix, min_size=5000, FigFormat='png', size_format='ESURF'):
+def long_profiler(terraces, lp, FigFormat='png'):
     """
     This function creates a plot of the terraces with distance
     downstream along the main channel.
 
     Args:
-        DataDirectory (str): the data directory
-        fname_prefix (str): the name of the DEM
-        min_size (int): the minimum number of pixels for a terrace. Any smaller ones will be excluded.
+        terraces: the dataframe with the terrace info
+        lp: the dataframe with the baseline profile info
         FigFormat: the format of the figure, default = png
-        size_format (str): Can be "big" (16 inches wide), "geomorphology" (6.25 inches wide), or "ESURF" (4.92 inches wide) (defualt esurf).
 
     Returns:
         terrace long profile plot
 
     Author: AW, FJC
     """
-    # make a figure
-    if size_format == "geomorphology":
-        fig = plt.figure(1, facecolor='white',figsize=(6.25,3.5))
-        #l_pad = -40
-    elif size_format == "big":
-        fig = plt.figure(1, facecolor='white',figsize=(16,9))
-        #l_pad = -50
-    else:
-        fig = plt.figure(1, facecolor='white',figsize=(4.92126,3.2))
-        #l_pad = -35
 
-    # make the plot
-    gs = plt.GridSpec(100,100,bottom=0.15,left=0.05,right=0.85,top=1.0)
-    ax = fig.add_subplot(gs[5:100,10:95])
-
-    # read in the terrace csv
-    terraces = pd.read_csv(DataDirectory+fname_prefix+'_terrace_info_filtered.csv')
-
-    # read in the baseline channel csv
-    lp = pd.read_csv(DataDirectory+fname_prefix+'_baseline_channel_info.csv')
-    lp = lp[lp['Elevation'] != -9999]
-
-    terraceIDs = sorted(list(set(list(terraces.TerraceID))))
-    xTerraces = []
-    zTerraces = []
-    yTerraces = []
-    newIDs = []
-
-    # loop through the terrace IDs and get the x, y, and z values
-    for terraceID in terraceIDs:
-        _terrace_subset = (terraces.TerraceID.values == terraceID)
-        _x = terraces['DistAlongBaseline'].values[_terrace_subset]
-        _y = terraces['DistToBaseline'].values[_terrace_subset]
-        _z = terraces['Elevation'].values[_terrace_subset]
-        _x_unique = sorted(list(set(list(_x))))
-        _z_unique = []
-        # Filter
-        #if len(_x) > 50 and len(_x_unique) > 1 and len(_x_unique) < 1000:
-            #print np.max(np.diff(_x_unique))
-            #if len(_x_unique) > 10 and len(_x_unique) < 1000 \
-            #and :
-        for _x_unique_i in _x_unique:
-            #_y_unique_i = np.min(np.array(_y)[_x == _x_unique_i])
-            #_z_unique.append(np.min(_z[_y == _y_unique_i]))
-            _z_unique.append(np.min(_z[_x == _x_unique_i]))
-        if np.mean(np.diff(_z_unique)/np.diff(_x_unique)) < 10:
-            xTerraces.append(_x_unique)
-            zTerraces.append(_z_unique)
-            newIDs.append(terraceID)
-
-    # get discrete colours so that each terrace is a different colour
-    this_cmap = cm.rainbow
-    this_cmap = cmap_discretize(len(newIDs),this_cmap)
-    print("N COLOURS: ", len(newIDs))
-    print(newIDs)
-    colors = iter(this_cmap(np.linspace(0, 1, len(newIDs))))
-    # plot the terraces
-    for i in range(len(xTerraces)):
-        plt.scatter(xTerraces[i], zTerraces[i], s=2, c=next(colors))
+    # get a pandas groupby object to group terraces by IDs
+    ax = terraces.plot.scatter(x='DistAlongBaseline', y='Elevation', c='new_ID', colormap='viridis', s=0.2)
 
     # plot the main stem channel in black
     plt.plot(lp['DistAlongBaseline'],lp['Elevation'], c='k', lw=2)
-
-    # add a colourbar
-    cax = fig.add_axes([0.83,0.15,0.03,0.8])
-    sm = plt.cm.ScalarMappable(cmap=this_cmap, norm=plt.Normalize(vmin=min(newIDs), vmax=max(newIDs)))
-    sm._A = []
-    cbar = plt.colorbar(sm,cmap=this_cmap,spacing='uniform',cax=cax, label='Terrace ID', orientation='vertical')
-    #colours.fix_colourbar_ticks(cbar,len(newIDs),cbar_type=int,min_value=min(newIDs),max_value=max(newIDs),labels=newIDs)
 
     # set axis params and save
     ax.set_xlabel('Distance downstream (m)')
@@ -466,7 +272,50 @@ def long_profiler(DataDirectory,fname_prefix, min_size=5000, FigFormat='png', si
     plt.savefig(DataDirectory+fname_prefix+'_terrace_plot.'+FigFormat,format=FigFormat,dpi=300)
     plt.clf()
 
-def long_profiler_dist(DataDirectory,fname_prefix, min_size=5000, FigFormat='png', size_format='ESURF', digitised_terraces=False, shapefile_name=None):
+def long_profiler_spline(terraces, lp, FigFormat='png'):
+    """
+    Fit a spline to each terrace surface and plot against the long profile of the
+    main channel. NOTE - this is not working yet.
+
+    Args:
+        terraces: the dataframe with the terrace info
+        lp: the dataframe with the baseline profile info
+        FigFormat: the format of the figure, default = png
+
+    Returns:
+        terrace long profile plot
+
+    Author: FJC
+    """
+    # make a figure
+    fig = CreateFigure()
+    ax = plt.subplot(111)
+
+    # create a groupby object from the terrace dataframe
+    terrace_ids = terraces.new_ID.unique()
+
+    for id in terrace_ids:
+        # get the x and z data for this terrace id
+        this_df = terraces[terraces.new_ID == id]
+        _xTerraces = this_df['DistAlongBaseline']
+        _zTerraces = this_df['Elevation']
+        print(_xTerraces)
+
+        # fit a univariate spline through these points
+        spl = UnivariateSpline(_xTerraces, _zTerraces)
+        xs = np.linspace(_xTerraces.min(), _xTerraces.max(), 1000)
+        plt.plot(xs, spl(xs), lw=3)
+
+    # plot the main stem channel
+    plt.plot(lp['DistAlongBaseline'],lp['Elevation'], c='k', lw=2)
+    # set axis params and save
+    ax.set_xlabel('Distance downstream (m)')
+    ax.set_ylabel('Elevation (m)')
+    plt.savefig(DataDirectory+fname_prefix+'_terrace_plot_spline.'+FigFormat,format=FigFormat,dpi=300)
+    plt.clf()
+
+
+def long_profiler_dist(DataDirectory,fname_prefix, min_size=5000, FigFormat='png', size_format='ESURF'):
     """
     Make long profile plot where terrace points are binned by
     distance along the channel
@@ -477,12 +326,6 @@ def long_profiler_dist(DataDirectory,fname_prefix, min_size=5000, FigFormat='png
 
     # read in the terrace csv
     terraces = pd.read_csv(DataDirectory+fname_prefix+'_terrace_info_filtered.csv')
-    if digitised_terraces:
-        # check if you've already done the selection, if so just read in the csv
-        if os.path.isfile(DataDirectory+fname_prefix+'_terrace_info_shapefiles.csv'):
-            terraces = pd.read_csv(DataDirectory+fname_prefix+'_terrace_info_shapefiles.csv')
-        else:
-            terraces = SelectTerracesFromShapefile(DataDirectory,shapefile_name,fname_prefix)
 
     # read in the baseline channel csv
     lp = pd.read_csv(DataDirectory+fname_prefix+'_baseline_channel_info.csv')
@@ -530,80 +373,6 @@ def long_profiler_dist(DataDirectory,fname_prefix, min_size=5000, FigFormat='png
 
     plt.clf()
 
-def long_profiler_centrelines(DataDirectory,fname_prefix, shapefile_name, FigFormat='png'):
-    """
-    Function takes in the csv file of terrace centreline data
-    and plots as a long profile against the baseline channel.
-
-    Author: FJC
-    """
-    # make a figure
-    fig = CreateFigure()
-    ax = plt.subplot(111)
-
-    # read in the terrace centreline shapefile
-    #terrace_df = SelectTerracePointsFromCentrelines(DataDirectory,shapefile_name,fname_prefix, distance=5)
-
-    terrace_df = pd.read_csv(DataDirectory+fname_prefix+'_terrace_info_centrelines.csv')
-
-    # read in the baseline channel csv
-    lp = pd.read_csv(DataDirectory+fname_prefix+'_baseline_channel_info.csv')
-    lp = lp[lp['Elevation'] != -9999]
-
-    # get the distance from outlet along the baseline for each terrace pixels
-    terrace_df = terrace_df.merge(lp, left_on = "BaselineNode", right_on = "node")
-
-    # make the long profile plot
-    terrace_ids = terrace_df['TerraceID'].unique()
-
-    # sort out the colours. We want a different colour for each terrace...
-    this_cmap = cm.viridis
-    norm = colors.Normalize(vmin=0, vmax=0.01, clip=True)
-    mapper = cm.ScalarMappable(norm=norm, cmap=this_cmap)
-
-    terrace_gradients = []
-
-    for id in terrace_ids:
-        # mask for this ID
-        this_df = terrace_df[terrace_df['TerraceID'] == id]
-        this_dist = this_df['DistFromOutlet']/1000
-        this_elev = this_df['Elevation_x']
-        # work out the number of bins. We want a spacing of ~ 10 m
-        bins = np.arange(this_dist.min(), this_dist.max(), 0.05)
-        n_bins = len(bins)
-        if n_bins < 1: n_bins = 1
-        # bin the data
-        n, _ = np.histogram(this_dist, bins=n_bins)
-        sy, _ = np.histogram(this_dist, bins=n_bins, weights = this_elev)
-        sy2, _ = np.histogram(this_dist, bins=n_bins, weights = this_elev*this_elev)
-        mean = sy/n
-
-        # work out the gradient of each terrace ID...rise/run. Use this to colour the terrace.
-        delta_x = this_df['DistFromOutlet'].max() - this_df['DistFromOutlet'].min()
-        delta_z = this_elev.max() - this_elev.min()
-        gradient = delta_z / delta_x
-        color=mapper.to_rgba(gradient)
-        terrace_gradients.append(gradient)
-
-        # plot the terrace
-        ax.plot((_[1:] + _[:-1])/2, mean,c=color,zorder=2)
-
-    ax.plot(lp['DistFromOutlet']/1000,lp['Elevation'],'k',lw=1)
-    # set axis params and save
-    ax.set_xlabel('Distance from outlet (km)')
-    ax.set_ylabel('Elevation (m)')
-    ax.set_xlim(0,(terrace_df['DistFromOutlet'].max()/1000))
-    ax.set_ylim(0,terrace_df['Elevation_x'].max()+10)
-
-    # add a colourbar
-    mapper.set_array(terrace_gradients)
-    cbar = plt.colorbar(mapper,cmap=this_cmap,norm=norm,orientation='vertical')
-    cbar.set_label('Gradient (m/m)')
-
-
-    plt.tight_layout()
-
-    plt.savefig(DataDirectory+fname_prefix+'_terrace_plot_centrelines.'+FigFormat,format=FigFormat,dpi=300)
 
 def MakeTerraceHeatMap(DataDirectory,fname_prefix, prec=100, bw_method=0.03, FigFormat='png', ages=""):
     """
@@ -638,19 +407,20 @@ def MakeTerraceHeatMap(DataDirectory,fname_prefix, prec=100, bw_method=0.03, Fig
 
     # get the distance from outlet along the baseline for each terrace pixels
     terrace_df = terrace_df.merge(lp, left_on = "BaselineNode", right_on = "node")
-    flow_dist = terrace_df['flow_distance']/1000
+    print(terrace_df.columns)
+    flow_dist = terrace_df['DistAlongBaseline_x']/1000
     print(terrace_df)
 
 	## Getting the extent of our dataset
     xmin = 0
     xmax = flow_dist.max()
     ymin = 0
-    ymax = terrace_df["Elevation"].max()
+    ymax = terrace_df["Elevation_x"].max()
 
     ## formatting the data in a meshgrid
     X,Y = np.meshgrid(np.linspace(0,xmax,num = prec),np.linspace(0,ymax, num = prec))
     positions = np.vstack([X.ravel(), Y.ravel()[::-1]]) # inverted Y to get the axis in the bottom left
-    values = np.vstack([flow_dist, terrace_df['Elevation']])
+    values = np.vstack([flow_dist, terrace_df['Elevation_x']])
     if len(values) == 0:
         print("You don't have any terraces, I'm going to quit now.")
     else:
@@ -664,7 +434,7 @@ def MakeTerraceHeatMap(DataDirectory,fname_prefix, prec=100, bw_method=0.03, Fig
         cb = ax.imshow(Z, interpolation = "None",  extent=[xmin, xmax, ymin, ymax], cmap=cmap, aspect = "auto")
 
         # plot the main stem channel
-        ax.plot(lp['DistFromOutlet']/1000,lp['Elevation'],'k',lw=1)
+        ax.plot(lp['DistFromOutlet']/1000,lp['Elevation_y'],'k',lw=1)
 
         # if present, plot the ages on the profile
         if ages:

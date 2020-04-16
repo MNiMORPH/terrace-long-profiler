@@ -4,6 +4,7 @@
 # import modules
 import matplotlib
 matplotlib.use('Agg')
+import pandas as pd
 import sys
 import os
 
@@ -37,8 +38,6 @@ def main(argv):
     parser.add_argument("-PR", "--plot_rasters", type=bool, default=False, help="If this is true, I'll make raster plots of the terrace locations (Default=false)")
     parser.add_argument("-HM", "--heat_map", type=bool, default=False, help="if true I'll make a heat map of terrace locations along the river long profile")
     parser.add_argument("-dips", "--dips", type=bool,default=False, help="If this is true, I'll calculate the dip and dip direction of each terrace.")
-    parser.add_argument("-DT", "--digitised_terraces", type=bool,default=False, help="If this is true I'll filter the terrace points using a shapefile of digitised terraces.")
-    parser.add_argument("-shp", "--shapefile_name", type=str, default=None, help="The shapefile of digitised terraces. Must be supplied if you want to filter terraces by shapefile, obvz.")
 
     # These control the format of your figures
     parser.add_argument("-fmt", "--FigFormat", type=str, default='png', help="Set the figure format for the plots. Default is png")
@@ -67,18 +66,16 @@ def main(argv):
             output.write(str(arg)+','+str(getattr(args, arg))+'\n')
         output.close()
 
-    # check if the slopes file exists
-    filtered = this_dir+args.fname_prefix+'_terrace_info_filtered.csv'
-    #if not os.path.isfile(filtered):
-        # modify the terrace info file to filter some terraces.
-    #    TerracePlotter.filter_terraces(this_dir, args.fname_prefix, args.min_size, args.min_elev, args.max_elev)
+    # read in the terrace csv
+    terraces = pd.read_csv(this_dir+args.fname_prefix+'_terrace_info_filtered.csv')
+
+    # read in the baseline channel csv
+    lp = pd.read_csv(this_dir+args.fname_prefix+'_baseline_channel_info.csv')
+    lp = lp[lp['Elevation'] != -9999]
 
     if args.long_profiler:
-        #if not args.digitised_terraces:
-        TerracePlotter.long_profiler(this_dir, args.fname_prefix)
-        #else:
-            #TerracePlotter.long_profiler_dist(this_dir, args.fname_prefix, digitised_terraces=True, shapefile_name = args.shapefile_name)
-            #TerracePlotter.long_profiler_centrelines(this_dir,args.fname_prefix,args.shapefile_name)
+        #TerracePlotter.long_profiler(terraces, lp)
+        TerracePlotter.long_profiler_spline(terraces, lp)
 
     # if args.plot_rasters:
     #     TerracePlotter.MakeRasterPlotTerraceIDs(this_dir, args.fname_prefix, args.FigFormat, args.size_format)
