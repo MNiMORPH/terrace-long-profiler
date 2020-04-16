@@ -69,20 +69,20 @@ def main(argv):
 
     # check if the slopes file exists
     filtered = this_dir+args.fname_prefix+'_terrace_info_filtered.csv'
-    if not os.path.isfile(filtered):
+    #if not os.path.isfile(filtered):
         # modify the terrace info file to filter some terraces.
-        TerracePlotter.filter_terraces(this_dir, args.fname_prefix, args.min_size, args.min_elev, args.max_elev)
+    #    TerracePlotter.filter_terraces(this_dir, args.fname_prefix, args.min_size, args.min_elev, args.max_elev)
 
     if args.long_profiler:
-        if not args.digitised_terraces:
-            TerracePlotter.long_profiler_dist(this_dir, args.fname_prefix)
-        else:
+        #if not args.digitised_terraces:
+        TerracePlotter.long_profiler(this_dir, args.fname_prefix)
+        #else:
             #TerracePlotter.long_profiler_dist(this_dir, args.fname_prefix, digitised_terraces=True, shapefile_name = args.shapefile_name)
-            TerracePlotter.long_profiler_centrelines(this_dir,args.fname_prefix,args.shapefile_name)
+            #TerracePlotter.long_profiler_centrelines(this_dir,args.fname_prefix,args.shapefile_name)
 
-    if args.plot_rasters:
-        TerracePlotter.MakeRasterPlotTerraceIDs(this_dir, args.fname_prefix, args.FigFormat, args.size_format)
-        TerracePlotter.MakeRasterPlotTerraceElev(this_dir, args.fname_prefix, args.FigFormat, args.size_format)
+    # if args.plot_rasters:
+    #     TerracePlotter.MakeRasterPlotTerraceIDs(this_dir, args.fname_prefix, args.FigFormat, args.size_format)
+    #     TerracePlotter.MakeRasterPlotTerraceElev(this_dir, args.fname_prefix, args.FigFormat, args.size_format)
     if args.dips:
         TerracePlotter.write_dip_and_dipdir_to_csv(this_dir,args.fname_prefix, args.digitised_terraces, args.shapefile_name)
         # TerracePlotter.MakeRasterPlotTerraceDips(this_dir,args.fname_prefix,FigFormat=args.FigFormat,size_format=args.size_format)
