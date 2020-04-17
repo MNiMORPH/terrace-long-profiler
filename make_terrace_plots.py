@@ -38,6 +38,7 @@ def main(argv):
     parser.add_argument("-PR", "--plot_rasters", type=bool, default=False, help="If this is true, I'll make raster plots of the terrace locations (Default=false)")
     parser.add_argument("-HM", "--heat_map", type=bool, default=False, help="if true I'll make a heat map of terrace locations along the river long profile")
     parser.add_argument("-dips", "--dips", type=bool,default=False, help="If this is true, I'll calculate the dip and dip direction of each terrace.")
+    parser.add_argument("-3d", "--plot_3d", type=bool,default=False, help="If this is true, I'll make a 3d plot of each terrace surface.")
 
     # These control the format of your figures
     parser.add_argument("-fmt", "--FigFormat", type=str, default='png', help="Set the figure format for the plots. Default is png")
@@ -67,15 +68,28 @@ def main(argv):
         output.close()
 
     # read in the terrace csv
-    terraces = pd.read_csv(this_dir+args.fname_prefix+'_terrace_info_filtered.csv')
+    terraces = pd.DataFrame()
+    dist_file = this_dir+args.fname_prefix+'_terrace_info_filtered_dist.csv'
+    # check if you have already calculated the distance along the baseline for each point
+    if os.path.isfile(dist_file):
+        terraces = pd.read_csv(this_dir+args.fname_prefix+'_terrace_info_filtered_dist.csv')
+    else:
+        terraces = pd.read_csv(this_dir+args.fname_prefix+'_terrace_info_filtered.csv')
+        # find the nearest point along the baseline for each terrace ID
+        terraces = get_distance_along_baseline(terraces, lp)
+        terraces.to_csv(this_dir+args.fname_prefix+'_terrace_info_filtered_dist.csv', index=False)
+
 
     # read in the baseline channel csv
     lp = pd.read_csv(this_dir+args.fname_prefix+'_baseline_channel_info.csv')
     lp = lp[lp['Elevation'] != -9999]
 
     if args.long_profiler:
-        #TerracePlotter.long_profiler(terraces, lp)
-        TerracePlotter.long_profiler_spline(terraces, lp)
+        TerracePlotter.long_profiler_all_terraces(this_dir, args.fname_prefix, terraces, lp)
+        TerracePlotter.long_profiler(this_dir, args.fname_prefix, terraces, lp)
+
+    if args.plot_3d:
+        TerracePlotter.PlotTerraceSurfaces(this_dir, args.fname_prefix, terraces)
 
     # if args.plot_rasters:
     #     TerracePlotter.MakeRasterPlotTerraceIDs(this_dir, args.fname_prefix, args.FigFormat, args.size_format)

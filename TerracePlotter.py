@@ -13,10 +13,14 @@ from matplotlib import pyplot as plt
 import matplotlib.cm as cm
 from matplotlib import rcParams
 from matplotlib import colors as colors
-from shapely.geometry import shape, Polygon, Point, LineString
+from mpl_toolkits import mplot3d
+from shapely.geometry import shape, Polygon, Point, LineString, mapping
 import fiona
 import os
+import sys
 from scipy.interpolate import UnivariateSpline
+from scipy import linalg
+import math
 
 def cmap_discretize(N, cmap):
     """Return a discrete colormap from the continuous colormap cmap.
@@ -127,9 +131,7 @@ def get_terrace_dip_and_dipdir(terrace_df):
 
     Author: AW and FJC
     """
-    from scipy import linalg
-    import math
-    from mpl_toolkits.mplot3d import Axes3D
+    #from mpl_toolkits.mplot3d import Axes3D
 
     # get the unique terrace IDs
     terraceIDs = terrace_df.TerraceID.unique()
@@ -239,43 +241,50 @@ def get_terrace_areas(terrace_df, fname_prefix):
 
     return area_dict
 
+def dist_along_line(X, Y, line):
+    """
+    find the distance of the point X,Y along the line shapefile
+    FJC
+    """
+    dist = line.project(Point(X,Y))
+    return dist
+
+def get_distance_along_baseline(terraces, lp):
+    """
+    This function gets the distance along the baseline for each of the terrace
+    points. This gives continuous distances along the baseline, compared to the
+    DistAlongBaseline column in the CSV which is just the nearest point along the
+    baseline.
+
+    Args:
+        terraces: the dataframe with the terrace info
+        lp_shp: the shapefile of the points along the baseline
+
+    Returns:
+        terrace dataframe with additional column - 'DistAlongBaseline_new'.
+
+    FJC
+    """
+    baseline_x = lp['X']
+    baseline_y = lp['Y']
+    points_list = zip(baseline_x, baseline_y)
+
+    line = LineString(points_list)
+    terraces['DistAlongBaseline_new'] = terraces.apply(lambda x: dist_along_line(x['X'], x['Y'], line), axis=1)
+
+    return terraces
+
 #---------------------------------------------------------------------------------------------#
 # XZ PLOTS
 # Functions to make XZ plots of terraces
 #---------------------------------------------------------------------------------------------#
 
-def long_profiler(terraces, lp, FigFormat='png'):
+def long_profiler(DataDirectory, fname_prefix, terraces, lp, FigFormat='png'):
     """
-    This function creates a plot of the terraces with distance
+    This function creates plots of the terraces with distance
     downstream along the main channel.
-
-    Args:
-        terraces: the dataframe with the terrace info
-        lp: the dataframe with the baseline profile info
-        FigFormat: the format of the figure, default = png
-
-    Returns:
-        terrace long profile plot
-
-    Author: AW, FJC
-    """
-
-    # get a pandas groupby object to group terraces by IDs
-    ax = terraces.plot.scatter(x='DistAlongBaseline', y='Elevation', c='new_ID', colormap='viridis', s=0.2)
-
-    # plot the main stem channel in black
-    plt.plot(lp['DistAlongBaseline'],lp['Elevation'], c='k', lw=2)
-
-    # set axis params and save
-    ax.set_xlabel('Distance downstream (m)')
-    ax.set_ylabel('Elevation (m)')
-    plt.savefig(DataDirectory+fname_prefix+'_terrace_plot.'+FigFormat,format=FigFormat,dpi=300)
-    plt.clf()
-
-def long_profiler_spline(terraces, lp, FigFormat='png'):
-    """
-    Fit a spline to each terrace surface and plot against the long profile of the
-    main channel. NOTE - this is not working yet.
+    It also attempts to fit a spline through each profile but this is not working
+    very well yet.
 
     Args:
         terraces: the dataframe with the terrace info
@@ -287,38 +296,67 @@ def long_profiler_spline(terraces, lp, FigFormat='png'):
 
     Author: FJC
     """
-    # make a figure
-    fig = CreateFigure()
+
+    fig = plt.figure()
     ax = plt.subplot(111)
+    # now plot
+    #ax = terraces.plot.scatter(x='DistAlongBaseline_new', y='Elevation', c='new_ID', colormap='viridis', s=0.2)
 
-    # create a groupby object from the terrace dataframe
     terrace_ids = terraces.new_ID.unique()
-
     for id in terrace_ids:
-        # get the x and z data for this terrace id
+        sys.stdout.write("This id is %d       \r" %(id))
         this_df = terraces[terraces.new_ID == id]
-        _xTerraces = this_df['DistAlongBaseline']
-        _zTerraces = this_df['Elevation']
-        print(_xTerraces)
+        sorted_df = this_df.sort_values(by='DistAlongBaseline_new')
+        _xTerraces = sorted_df['DistAlongBaseline_new']/1000
+        _zTerraces = sorted_df['Elevation']
+        plt.scatter(_xTerraces, _zTerraces, s = 0.2)
 
-        # fit a univariate spline through these points
+        print("Fitting spline...")
+        #fit a spline through the terrace points
         spl = UnivariateSpline(_xTerraces, _zTerraces)
         xs = np.linspace(_xTerraces.min(), _xTerraces.max(), 1000)
-        plt.plot(xs, spl(xs), lw=3)
+        plt.plot(xs, spl(xs), lw=1, c='k')
 
-    # plot the main stem channel
+        plt.xlabel('Distance downstream (km)')
+        plt.ylabel('Elevation (m)')
+        plt.savefig(DataDirectory+fname_prefix+'_terrace_plot_'+str(id)+'.'+FigFormat,format=FigFormat,dpi=300)
+        plt.clf()
+
+def long_profiler_all_terraces(DataDirectory, fname_prefix, terraces, lp, FigFormat='png'):
+    """
+    Plot each terrace surface against the long profile of the
+    main channel.
+
+    Args:
+        terraces: the dataframe with the terrace info
+        lp: the dataframe with the baseline profile info
+        FigFormat: the format of the figure, default = png
+
+    Returns:
+        terrace long profile plot
+
+    Author: FJC
+    """
+
+    fig = plt.figure()
+    ax = plt.subplot(111)
+    # now plot
+    ax = terraces.plot.scatter(x='DistAlongBaseline_new', y='Elevation', c='new_ID', colormap='viridis', s=0.2)
+
+    # plot the main stem channel in black
     plt.plot(lp['DistAlongBaseline'],lp['Elevation'], c='k', lw=2)
+
     # set axis params and save
     ax.set_xlabel('Distance downstream (m)')
     ax.set_ylabel('Elevation (m)')
-    plt.savefig(DataDirectory+fname_prefix+'_terrace_plot_spline.'+FigFormat,format=FigFormat,dpi=300)
+    plt.savefig(DataDirectory+fname_prefix+'_terrace_plot.'+FigFormat,format=FigFormat,dpi=300)
     plt.clf()
-
 
 def long_profiler_dist(DataDirectory,fname_prefix, min_size=5000, FigFormat='png', size_format='ESURF'):
     """
     Make long profile plot where terrace points are binned by
     distance along the channel
+    FJC
     """
     # make a figure
     fig = CreateFigure()
@@ -458,4 +496,52 @@ def MakeTerraceHeatMap(DataDirectory,fname_prefix, prec=100, bw_method=0.03, Fig
         # save the figure
         plt.tight_layout()
         plt.savefig(T_directory+fname_prefix+'_terrace_plot_heat_map.png',format=FigFormat,dpi=300)
+        plt.clf
+
+#--------------------------------------------------------------------------------------------------#
+# 3D plots
+#--------------------------------------------------------------------------------------------------#
+def plane(x,y,C):
+    return C[0]*x + C[1]*y + C[2]
+
+def PlotTerraceSurfaces(DataDirectory, fname_prefix, terraces):
+    """
+    Make 3d plot of each terrace surface
+    """
+    # make a figure
+    fig = plt.figure()
+
+    # create a groupby object from the terrace dataframe
+    terrace_ids = terraces.new_ID.unique()
+
+    for id in terrace_ids:
+        sys.stdout.write("This id is %d       \r" %(id))
+        # get the x and z data for this terrace id
+        this_df = terraces[terraces.new_ID == id]
+        #_x = terrace_df['DistAlongBaseline'].values[_terrace_subset]
+        #_y = terrace_df['DistToBaseline'].values[_terrace_subset]
+        _z = this_df['Elevation'].values
+        _X = this_df['X'].values
+        _Y = this_df['Y'].values
+
+        # fit a plane to these points
+        # form: Z = C[0]*X + C[1]*Y + C[2]
+        _XY = np.vstack((_X, _Y, np.ones(len(_Y)))).transpose()
+        C,_,_,_ = linalg.lstsq(_XY, _z)
+        plane_x = np.linspace(_X.min()-100, _X.max()+100, 1000)
+        plane_y = np.linspace(_Y.min()-100, _Y.max()+100, 1000)
+        plane_X, plane_Y = np.meshgrid(plane_x, plane_y)
+        plane_Z = plane(plane_X,plane_Y,C)
+
+        # plot the plane
+        ax = plt.axes(projection='3d')
+        ax.plot_wireframe(plane_X, plane_Y, plane_Z, color='black', lw=0.7, alpha=0.5, zorder=0)
+
+        # plot the terrace points
+        ax.scatter(_X, _Y, _z, c=_z, s=0.2, edgecolors=None, zorder=2)
+
+        ax.set_xlabel('X (m)')
+        ax.set_ylabel('Y (m)')
+        ax.set_zlabel('Elevation (m)')
+        plt.savefig(DataDirectory+fname_prefix+'_3d_plot_'+str(id)+'.png',format='png',dpi=300)
         plt.clf()
