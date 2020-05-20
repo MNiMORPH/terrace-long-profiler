@@ -18,8 +18,9 @@ from shapely.geometry import shape, Polygon, Point, LineString, mapping
 import fiona
 import os
 import sys
-from scipy.interpolate import UnivariateSpline
+from scipy.signal import savgol_filter
 from scipy import linalg
+from scipy import stats
 import math
 
 def cmap_discretize(N, cmap):
@@ -306,16 +307,27 @@ def long_profiler(DataDirectory, fname_prefix, terraces, lp, FigFormat='png'):
     for id in terrace_ids:
         sys.stdout.write("This id is %d       \r" %(id))
         this_df = terraces[terraces.new_ID == id]
+        this_df['DistAlongBaseline_new'] = this_df['DistAlongBaseline_new']/1000
         sorted_df = this_df.sort_values(by='DistAlongBaseline_new')
-        _xTerraces = sorted_df['DistAlongBaseline_new']/1000
-        _zTerraces = sorted_df['Elevation']
+        _xTerraces = sorted_df['DistAlongBaseline_new'].values
+        _zTerraces = sorted_df['Elevation'].values
         plt.scatter(_xTerraces, _zTerraces, s = 0.2)
 
-        print("Fitting spline...")
+        # bin the points into 100 m bins and find the median elevation within that bin.
+        #bin_width = 0.05
+        #n_bins = int((_xTerraces.max() - _xTerraces.min())/bin_width)
+        n_bins = 50
+        print("Number of bins:", n_bins)
+        bin_medians, bin_edges, binnumber = stats.binned_statistic(_xTerraces, _zTerraces, statistic='median', bins=n_bins)
+        bin_width = (bin_edges[1] - bin_edges[0])
+        bin_centres = bin_edges[1:] - bin_width/2
+        plt.plot(bin_centres, bin_medians, c='red')
+
+        #print("Fitting spline...")
         #fit a spline through the terrace points
-        spl = UnivariateSpline(_xTerraces, _zTerraces)
-        xs = np.linspace(_xTerraces.min(), _xTerraces.max(), 1000)
-        plt.plot(xs, spl(xs), lw=1, c='k')
+        #print(_xTerraces)
+        #yhat = savgol_filter(_zTerraces, 101, 2)   # window size 51, polynomial order 3
+        #plt.plot(_xTerraces, yhat, color='red')
 
         plt.xlabel('Distance downstream (km)')
         plt.ylabel('Elevation (m)')
@@ -341,75 +353,59 @@ def long_profiler_all_terraces(DataDirectory, fname_prefix, terraces, lp, FigFor
     fig = plt.figure()
     ax = plt.subplot(111)
     # now plot
-    ax = terraces.plot.scatter(x='DistAlongBaseline_new', y='Elevation', c='new_ID', colormap='viridis', s=0.2)
+    #ax = terraces.plot.scatter(x='DistAlongBaseline_new', y='Elevation', c='new_ID', colormap='viridis', s=0.2)
 
     # plot the main stem channel in black
-    plt.plot(lp['DistAlongBaseline'],lp['Elevation'], c='k', lw=2)
+    plt.plot(lp['DistAlongBaseline']/1000,lp['Elevation'], c='k', lw=2)
 
+    # now plot each terrace individually
+    terrace_ids = terraces.new_ID.unique()
+    # normalize colours by relief above channel
+    norm = colors.Normalize(vmin=terraces.ChannelRelief.min(),vmax=terraces.ChannelRelief.max())
+
+    for i, id in enumerate(terrace_ids):
+        sys.stdout.write("This id is %d       \r" %(id))
+        this_df = terraces[terraces.new_ID == id]
+        this_df['DistAlongBaseline_new'] = this_df['DistAlongBaseline_new']/1000
+        sorted_df = this_df.sort_values(by='DistAlongBaseline_new')
+        _xTerraces = sorted_df['DistAlongBaseline_new'].values
+        _zTerraces = sorted_df['Elevation'].values
+        ChannelRelief = sorted_df['ChannelRelief'].values
+        #plt.scatter(_xTerraces, _zTerraces, s = 0.2)
+
+        # # bin the points into 100 m bins and find the median elevation within that bin.
+        # bin_width = 0.1
+        # n_bins = int((_xTerraces.max() - _xTerraces.min())/bin_width)
+        # if not n_bins == 0:
+        # #n_bins = 20
+        #     print("Number of bins:", n_bins)
+        #     bin_medians, bin_edges, binnumber = stats.binned_statistic(_xTerraces, _zTerraces, statistic='median', bins=n_bins)
+        #     #bin_width = (bin_edges[1] - bin_edges[0])
+        #     bin_centres = bin_edges[1:] - bin_width/2
+        #     plt.plot(bin_centres, bin_medians, lw=2, c=colours[i])
+        mean_elevation = np.mean(_zTerraces)
+        distance = np.take(_xTerraces, _xTerraces.size // 2)
+        mean_relief = np.mean(ChannelRelief)
+        print(mean_relief)
+        plt.scatter(distance, mean_elevation, c=mean_relief, s=20, edgecolors='k', cmap=cm.Reds, norm=norm)
+
+        # to do -save the aggregated terrace data to csv and make a plot for the entire Mississippi.
+
+
+    #ax.set_ylim(200,260)
     # set axis params and save
     ax.set_xlabel('Distance downstream (m)')
     ax.set_ylabel('Elevation (m)')
+    plt.colorbar(cmap=cm.Reds,norm=norm, label="Elevation above modern channel (m)")
+    plt.tight_layout()
     plt.savefig(DataDirectory+fname_prefix+'_terrace_plot.'+FigFormat,format=FigFormat,dpi=300)
     plt.clf()
 
-def long_profiler_dist(DataDirectory,fname_prefix, min_size=5000, FigFormat='png', size_format='ESURF'):
+def long_profiler_centrelines(DataDirectory, fname_prefix, terraces, lp, FigFormat='png'):
     """
-    Make long profile plot where terrace points are binned by
-    distance along the channel
-    FJC
+    Make a long profile plot of the centreline of each terrace compared to the channel
     """
-    # make a figure
-    fig = CreateFigure()
-    ax = plt.subplot(111)
 
-    # read in the terrace csv
-    terraces = pd.read_csv(DataDirectory+fname_prefix+'_terrace_info_filtered.csv')
-
-    # read in the baseline channel csv
-    lp = pd.read_csv(DataDirectory+fname_prefix+'_baseline_channel_info.csv')
-    lp = lp[lp['Elevation'] != -9999]
-
-    # get the distance from outlet along the baseline for each terrace pixels
-    new_terraces = terraces.merge(lp, left_on = "BaselineNode", right_on = "node")
-    print(new_terraces)
-
-    xTerraces = np.array(new_terraces['DistFromOutlet'])
-    yTerraces = np.array(new_terraces['DistToBaseline'])
-    zTerraces = np.array(new_terraces['Elevation_x'])
-
-    MaximumDistance = xTerraces.max()
-
-    # now bin by distance along the baseline
-    bins = np.unique(xTerraces)
-    nbins = len(np.unique(xTerraces))
-    n, _ = np.histogram(xTerraces, bins=nbins)
-    s_zTerraces, _ = np.histogram(xTerraces, bins=nbins, weights=zTerraces)
-    s_zTerraces2, _ = np.histogram(xTerraces, bins=nbins, weights=zTerraces*zTerraces)
-    mean = s_zTerraces / n
-    std = np.sqrt(s_zTerraces2/n - mean*mean)
-
-    # # invert to get distance from outlet
-    # MS_DistAlongBaseline = np.array(lp['DistAlongBaseline'])[::-1]
-    MS_Dist = np.array(lp['DistFromOutlet'])
-    MS_Elevation = np.array(lp['Elevation'])
-    Terrace_Elevation = mean
-
-    print(MS_Dist)
-    print(MS_Elevation)
-    print(Terrace_Elevation)
-
-    # plot the main stem channel in black
-    plt.plot(MS_Dist/1000,MS_Elevation, c='k', lw=1)
-    plt.scatter((_/1000)[:-1], Terrace_Elevation, s=2, zorder=2, c='r')
-
-    # set axis params and save
-    ax.set_xlabel('Distance from outlet (km)')
-    ax.set_ylabel('Elevation (m)')
-    ax.set_xlim(0,80)
-    plt.tight_layout()
-    plt.savefig(DataDirectory+fname_prefix+'_terrace_plot_binned.'+FigFormat,format=FigFormat,dpi=300)
-
-    plt.clf()
 
 
 def MakeTerraceHeatMap(DataDirectory,fname_prefix, prec=100, bw_method=0.03, FigFormat='png', ages=""):
@@ -436,7 +432,7 @@ def MakeTerraceHeatMap(DataDirectory,fname_prefix, prec=100, bw_method=0.03, Fig
     ax = plt.subplot(111)
 
     # read in the terrace DataFrame
-    terrace_df = pd.read_csv(DataDirectory+fname_prefix+'_terrace_info_filtered.csv')
+    terrace_df = pd.read_csv(DataDirectory+fname_prefix+'_terrace_info_filtered_dist.csv')
     terrace_df = terrace_df[terrace_df['BaselineNode'] != -9999]
 
     # read in the baseline channel csv
@@ -444,21 +440,21 @@ def MakeTerraceHeatMap(DataDirectory,fname_prefix, prec=100, bw_method=0.03, Fig
     lp = lp[lp['Elevation'] != -9999]
 
     # get the distance from outlet along the baseline for each terrace pixels
-    terrace_df = terrace_df.merge(lp, left_on = "BaselineNode", right_on = "node")
-    print(terrace_df.columns)
-    flow_dist = terrace_df['DistAlongBaseline_x']/1000
-    print(terrace_df)
+    #terrace_df = terrace_df.merge(lp, left_on = "BaselineNode", right_on = "node")
+    #print(terrace_df.columns)
+    flow_dist = terrace_df['DistAlongBaseline_new']/1000
+    #print(terrace_df)
 
 	## Getting the extent of our dataset
     xmin = 0
     xmax = flow_dist.max()
     ymin = 0
-    ymax = terrace_df["Elevation_x"].max()
+    ymax = terrace_df["Elevation"].max()
 
     ## formatting the data in a meshgrid
     X,Y = np.meshgrid(np.linspace(0,xmax,num = prec),np.linspace(0,ymax, num = prec))
     positions = np.vstack([X.ravel(), Y.ravel()[::-1]]) # inverted Y to get the axis in the bottom left
-    values = np.vstack([flow_dist, terrace_df['Elevation_x']])
+    values = np.vstack([flow_dist, terrace_df['Elevation']])
     if len(values) == 0:
         print("You don't have any terraces, I'm going to quit now.")
     else:
@@ -472,7 +468,7 @@ def MakeTerraceHeatMap(DataDirectory,fname_prefix, prec=100, bw_method=0.03, Fig
         cb = ax.imshow(Z, interpolation = "None",  extent=[xmin, xmax, ymin, ymax], cmap=cmap, aspect = "auto")
 
         # plot the main stem channel
-        ax.plot(lp['DistFromOutlet']/1000,lp['Elevation_y'],'k',lw=1)
+        ax.plot(lp['DistFromOutlet']/1000,lp['Elevation'],'k',lw=1)
 
         # if present, plot the ages on the profile
         if ages:

@@ -50,9 +50,9 @@ def main(argv):
     if args.base_directory:
         this_dir = args.base_directory
         # check if you remembered a / at the end of your path_name
-        if not this_dir.endswith("/"):
-            print("You forgot the '/' at the end of the directory, appending...")
-            this_dir = this_dir+"/"
+        # if not this_dir.endswith("/"):
+        #     print("You forgot the '/' at the end of the directory, appending...")
+        #     this_dir = this_dir+"/"
     else:
         this_dir = os.getcwd()
 
@@ -67,6 +67,10 @@ def main(argv):
             output.write(str(arg)+','+str(getattr(args, arg))+'\n')
         output.close()
 
+    # read in the baseline channel csv
+    lp = pd.read_csv(this_dir+args.fname_prefix+'_baseline_channel_info.csv')
+    lp = lp[lp['Elevation'] != -9999]
+
     # read in the terrace csv
     terraces = pd.DataFrame()
     dist_file = this_dir+args.fname_prefix+'_terrace_info_filtered_dist.csv'
@@ -76,17 +80,13 @@ def main(argv):
     else:
         terraces = pd.read_csv(this_dir+args.fname_prefix+'_terrace_info_filtered.csv')
         # find the nearest point along the baseline for each terrace ID
-        terraces = get_distance_along_baseline(terraces, lp)
+        terraces = TerracePlotter.get_distance_along_baseline(terraces, lp)
         terraces.to_csv(this_dir+args.fname_prefix+'_terrace_info_filtered_dist.csv', index=False)
 
 
-    # read in the baseline channel csv
-    lp = pd.read_csv(this_dir+args.fname_prefix+'_baseline_channel_info.csv')
-    lp = lp[lp['Elevation'] != -9999]
-
     if args.long_profiler:
         TerracePlotter.long_profiler_all_terraces(this_dir, args.fname_prefix, terraces, lp)
-        TerracePlotter.long_profiler(this_dir, args.fname_prefix, terraces, lp)
+        #TerracePlotter.long_profiler(this_dir, args.fname_prefix, terraces, lp)
 
     if args.plot_3d:
         TerracePlotter.PlotTerraceSurfaces(this_dir, args.fname_prefix, terraces)
