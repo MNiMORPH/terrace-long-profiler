@@ -210,14 +210,14 @@ def get_terrace_dip_and_dipdir(terrace_df):
     output_pd = pd.DataFrame(data = outarray, index=_index, columns=_column_names)
     return output_pd
 
-def get_terrace_areas(terrace_df, fname_prefix):
+def get_terrace_areas(terrace_df, res=5):
     """
     This function takes the initial terrace dataframe and calculates the
     area of each terrace.
 
     Args:
         terrace_df: pandas dataframe with the terrace info
-        fname_prefix: name of the DEM (to get data res)
+        res: DEM resolution (default =5m)
 
     Returns:
         dict where key is the terrace ID and value is the terrace area in m^2
@@ -225,18 +225,18 @@ def get_terrace_areas(terrace_df, fname_prefix):
     Author: FJC
     """
     # get unique IDs
-    terraceIDs = terrace_df.terraceID.unique()
+    terraceIDs = terrace_df.new_ID.unique()
 
     area_dict = {}
 
     for terraceID in terraceIDs:
         # get the n rows with this ID
-        masked_df = terrace_df[terrace_df['terraceID'] == terraceID]
+        masked_df = terrace_df[terrace_df['new_ID'] == terraceID]
         n_pixels = len(masked_df.index)
 
         # get the data resolution of the DEM
-        Cell_area = IO.GetPixelArea(fname_prefix)
-        terrace_area = n_pixels * Cell_area
+        #Cell_area = IO.GetPixelArea(fname_prefix)
+        terrace_area = n_pixels * res * res
 
         area_dict[terraceID] = terrace_area
 
@@ -362,6 +362,9 @@ def long_profiler_all_terraces(DataDirectory, fname_prefix, terraces, lp, FigFor
     terrace_ids = terraces.new_ID.unique()
     # normalize colours by relief above channel
     norm = colors.Normalize(vmin=terraces.ChannelRelief.min(),vmax=terraces.ChannelRelief.max())
+    # get area of terraces: size of marker is scaled by area
+    areas = get_terrace_areas(terraces, res=5)
+    print(areas)
 
     for i, id in enumerate(terrace_ids):
         sys.stdout.write("This id is %d       \r" %(id))
@@ -384,10 +387,13 @@ def long_profiler_all_terraces(DataDirectory, fname_prefix, terraces, lp, FigFor
         #     bin_centres = bin_edges[1:] - bin_width/2
         #     plt.plot(bin_centres, bin_medians, lw=2, c=colours[i])
         mean_elevation = np.mean(_zTerraces)
+        std_elevation = np.std(_zTerraces)
         distance = np.take(_xTerraces, _xTerraces.size // 2)
         mean_relief = np.mean(ChannelRelief)
-        print(mean_relief)
-        plt.scatter(distance, mean_elevation, c=mean_relief, s=20, edgecolors='k', cmap=cm.Reds, norm=norm)
+
+        #print(mean_relief)
+        plt.scatter(distance, mean_elevation, c=mean_relief, s=areas[id]/100000, edgecolors='k', cmap=cm.Reds, norm=norm, zorder=1)
+        plt.errorbar(distance, mean_elevation, yerr=std_elevation, zorder=0.1, c='0.5', lw=1, capsize=2, alpha=0.5)
 
         # to do -save the aggregated terrace data to csv and make a plot for the entire Mississippi.
 
@@ -397,16 +403,10 @@ def long_profiler_all_terraces(DataDirectory, fname_prefix, terraces, lp, FigFor
     ax.set_xlabel('Distance downstream (m)')
     ax.set_ylabel('Elevation (m)')
     plt.colorbar(cmap=cm.Reds,norm=norm, label="Elevation above modern channel (m)")
+    #plt.legend(loc='upper right')
     plt.tight_layout()
     plt.savefig(DataDirectory+fname_prefix+'_terrace_plot.'+FigFormat,format=FigFormat,dpi=300)
     plt.clf()
-
-def long_profiler_centrelines(DataDirectory, fname_prefix, terraces, lp, FigFormat='png'):
-    """
-    Make a long profile plot of the centreline of each terrace compared to the channel
-    """
-
-
 
 def MakeTerraceHeatMap(DataDirectory,fname_prefix, prec=100, bw_method=0.03, FigFormat='png', ages=""):
     """
