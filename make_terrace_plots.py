@@ -35,6 +35,7 @@ def main(argv):
 
     # What sort of analyses you want to do
     parser.add_argument("-LP", "--long_profiler", type=bool, default=False, help="If this is true, I'll make plots of the terrace long profiles (Default = true)")
+    parser.add_argument("-compiled", "--compiled", type=bool, default=False, help="If this is true, I'll combine all reaches to make a super-plot for the whole river")
     parser.add_argument("-PR", "--plot_rasters", type=bool, default=False, help="If this is true, I'll make raster plots of the terrace locations (Default=false)")
     parser.add_argument("-HM", "--heat_map", type=bool, default=False, help="if true I'll make a heat map of terrace locations along the river long profile")
     parser.add_argument("-dips", "--dips", type=bool,default=False, help="If this is true, I'll calculate the dip and dip direction of each terrace.")
@@ -60,45 +61,76 @@ def main(argv):
     if not args.fname_prefix:
         print("WARNING! You haven't supplied your DEM name. Please specify this with the flag '-fname'")
         sys.exit()
-
     # print the arguments that you used to an output file for reproducibility
     with open(this_dir+args.fname_prefix+'_report.csv', 'w') as output:
         for arg in vars(args):
             output.write(str(arg)+','+str(getattr(args, arg))+'\n')
         output.close()
 
-    # read in the baseline channel csv
-    lp = pd.read_csv(this_dir+args.fname_prefix+'_baseline_channel_info.csv')
-    lp = lp[lp['Elevation'] != -9999]
+    if not args.compiled:
+        # read in the baseline channel csv
+        lp = pd.read_csv(this_dir+args.fname_prefix+'_baseline_channel_info.csv')
+        lp = lp[lp['Elevation'] != -9999]
 
-    # read in the terrace csv
-    terraces = pd.DataFrame()
-    dist_file = this_dir+args.fname_prefix+'_terrace_info_filtered_dist.csv'
-    # check if you have already calculated the distance along the baseline for each point
-    if os.path.isfile(dist_file):
-        terraces = pd.read_csv(this_dir+args.fname_prefix+'_terrace_info_filtered_dist.csv')
-    else:
-        terraces = pd.read_csv(this_dir+args.fname_prefix+'_terrace_info_filtered.csv')
-        # find the nearest point along the baseline for each terrace ID
-        terraces = TerracePlotter.get_distance_along_baseline(terraces, lp)
-        terraces.to_csv(this_dir+args.fname_prefix+'_terrace_info_filtered_dist.csv', index=False)
+        # read in the terrace csv
+        terraces = pd.DataFrame()
+        dist_file = this_dir+args.fname_prefix+'_terrace_info_filtered_dist.csv'
+        # check if you have already calculated the distance along the baseline for each point
+        if os.path.isfile(dist_file):
+            terraces = pd.read_csv(this_dir+args.fname_prefix+'_terrace_info_filtered_dist.csv')
+        else:
+            terraces = pd.read_csv(this_dir+args.fname_prefix+'_terrace_info_filtered.csv')
+            # find the nearest point along the baseline for each terrace ID
+            terraces = TerracePlotter.get_distance_along_baseline_points(terraces, lp)
+            terraces.to_csv(this_dir+args.fname_prefix+'_terrace_info_filtered_dist.csv', index=False)
 
 
-    if args.long_profiler:
-        TerracePlotter.long_profiler_all_terraces(this_dir, args.fname_prefix, terraces, lp)
-        #TerracePlotter.long_profiler(this_dir, args.fname_prefix, terraces, lp)
+        if args.long_profiler:
+            TerracePlotter.long_profiler_all_terraces(this_dir, args.fname_prefix, terraces, lp)
+            #TerracePlotter.long_profiler(this_dir, args.fname_prefix, terraces, lp)
 
-    if args.plot_3d:
-        TerracePlotter.PlotTerraceSurfaces(this_dir, args.fname_prefix, terraces)
+        if args.plot_3d:
+            TerracePlotter.PlotTerraceSurfaces(this_dir, args.fname_prefix, terraces)
 
-    # if args.plot_rasters:
-    #     TerracePlotter.MakeRasterPlotTerraceIDs(this_dir, args.fname_prefix, args.FigFormat, args.size_format)
-    #     TerracePlotter.MakeRasterPlotTerraceElev(this_dir, args.fname_prefix, args.FigFormat, args.size_format)
-    if args.dips:
-        TerracePlotter.write_dip_and_dipdir_to_csv(this_dir,args.fname_prefix, args.digitised_terraces, args.shapefile_name)
-        # TerracePlotter.MakeRasterPlotTerraceDips(this_dir,args.fname_prefix,FigFormat=args.FigFormat,size_format=args.size_format)
-    if args.heat_map:
-        TerracePlotter.MakeTerraceHeatMap(this_dir, args.fname_prefix, prec=100, bw_method=0.03, FigFormat=args.FigFormat, ages="")
+        # if args.plot_rasters:
+        #     TerracePlotter.MakeRasterPlotTerraceIDs(this_dir, args.fname_prefix, args.FigFormat, args.size_format)
+        #     TerracePlotter.MakeRasterPlotTerraceElev(this_dir, args.fname_prefix, args.FigFormat, args.size_format)
+        if args.dips:
+            TerracePlotter.write_dip_and_dipdir_to_csv(this_dir,args.fname_prefix, args.digitised_terraces, args.shapefile_name)
+            # TerracePlotter.MakeRasterPlotTerraceDips(this_dir,args.fname_prefix,FigFormat=args.FigFormat,size_format=args.size_format)
+        if args.heat_map:
+            TerracePlotter.MakeTerraceHeatMap(this_dir, args.fname_prefix, prec=100, bw_method=0.03, FigFormat=args.FigFormat, ages="")
+
+    else: # Compile all the reaches to make a terrace plot for the whole river.
+        lp = this_dir+args.fname_prefix+'_baseline.shp'
+        dist_file = this_dir+args.fname_prefix+'_terrace_info_filtered_dist.csv'
+        base_dir = 'D:\\MississippiTerraces\\'
+
+        # read in the long profile csv
+        lp_file = this_dir+args.fname_prefix+'_baseline_channel_info.csv'
+        if os.path.isfile(lp_file):
+            lp_csv = pd.read_csv(lp_file)
+        else:
+            TerracePlotter.merge_baselines(base_dir, lp_file, lp)
+
+        # check if you have already calculated the distance along the baseline for each point
+        if os.path.isfile(dist_file):
+            terraces = pd.read_csv(dist_file)
+            print(terraces)
+        else:
+            # find each sub-directory and get the distance from the shapefile
+            subdirs = next(os.walk(base_dir))[1]
+            master_df = pd.DataFrame()
+            for dir in subdirs:
+                if 'UMV_DEM5m_' in dir:
+                    terraces = pd.read_csv(base_dir+dir+'\\'+dir+'_final_terrace_info_filtered.csv')
+                    # find the nearest point along the baseline for each terrace ID
+                    terraces = TerracePlotter.get_distance_along_baseline(terraces, lp)
+                    master_df = master_df.append(terraces)
+            master_df.to_csv(dist_file, index=False)
+
+
+
 
 #=============================================================================
 # This is just a welcome screen that is displayed if no arguments are provided.

@@ -22,6 +22,7 @@ from scipy.signal import savgol_filter
 from scipy import linalg
 from scipy import stats
 import math
+import re
 
 def cmap_discretize(N, cmap):
     """Return a discrete colormap from the continuous colormap cmap.
@@ -250,7 +251,7 @@ def dist_along_line(X, Y, line):
     dist = line.project(Point(X,Y))
     return dist
 
-def get_distance_along_baseline(terraces, lp):
+def get_distance_along_baseline_points(terraces, lp):
     """
     This function gets the distance along the baseline for each of the terrace
     points. This gives continuous distances along the baseline, compared to the
@@ -259,7 +260,7 @@ def get_distance_along_baseline(terraces, lp):
 
     Args:
         terraces: the dataframe with the terrace info
-        lp_shp: the shapefile of the points along the baseline
+        lp_shp: the csv file of the points along the baseline
 
     Returns:
         terrace dataframe with additional column - 'DistAlongBaseline_new'.
@@ -275,6 +276,30 @@ def get_distance_along_baseline(terraces, lp):
 
     return terraces
 
+def get_distance_along_baseline(terraces, lp):
+    """
+    This function gets the distance along the baseline for each of the terrace
+    points. This gives continuous distances along the baseline, compared to the
+    DistAlongBaseline column in the CSV which is just the nearest point along the
+    baseline.
+
+    Args:
+        terraces: the dataframe with the terrace info
+        lp: the name shapefile of the baseline (a line shapefile)
+
+    Returns:
+        terrace dataframe with additional column - 'DistAlongBaseline_new'.
+
+    FJC
+    """
+    # get the shapefile as a shapely line
+     # read in the baseline shapefile
+    c = fiona.collection(lp, 'r')
+    rec = c.next()
+    line = LineString(shape(rec['geometry']))
+    terraces['DistAlongBaseline_new'] = terraces.apply(lambda x: dist_along_line(x['X'], x['Y'], line), axis=1)
+
+    return terraces
 #---------------------------------------------------------------------------------------------#
 # XZ PLOTS
 # Functions to make XZ plots of terraces
@@ -366,6 +391,7 @@ def long_profiler_all_terraces(DataDirectory, fname_prefix, terraces, lp, FigFor
     areas = get_terrace_areas(terraces, res=5)
     print(areas)
 
+    data = []
     for i, id in enumerate(terrace_ids):
         sys.stdout.write("This id is %d       \r" %(id))
         this_df = terraces[terraces.new_ID == id]
@@ -388,6 +414,7 @@ def long_profiler_all_terraces(DataDirectory, fname_prefix, terraces, lp, FigFor
         #     plt.plot(bin_centres, bin_medians, lw=2, c=colours[i])
         mean_elevation = np.mean(_zTerraces)
         std_elevation = np.std(_zTerraces)
+        # get the distance in the middle of the terrace
         distance = np.take(_xTerraces, _xTerraces.size // 2)
         mean_relief = np.mean(ChannelRelief)
 
@@ -395,9 +422,15 @@ def long_profiler_all_terraces(DataDirectory, fname_prefix, terraces, lp, FigFor
         plt.scatter(distance, mean_elevation, c=mean_relief, s=areas[id]/100000, edgecolors='k', cmap=cm.Reds, norm=norm, zorder=1)
         plt.errorbar(distance, mean_elevation, yerr=std_elevation, zorder=0.1, c='0.5', lw=1, capsize=2, alpha=0.5)
 
-        # to do -save the aggregated terrace data to csv and make a plot for the entire Mississippi.
+        # append the mean data
+        data.append([id, mean_elevation, std_elevation, distance, mean_relief, areas[id]])
 
 
+    # save the mean dataframe to csv
+    print(data)
+    master_df = pd.DataFrame(data, columns=['new_ID', 'mean_elevation', 'std_elevation', 'flow_dist', 'mean_relief', 'area'])
+    print(master_df)
+    master_df.to_csv(DataDirectory+fname_prefix+'_terrace_means.csv', index=False)
     #ax.set_ylim(200,260)
     # set axis params and save
     ax.set_xlabel('Distance downstream (m)')
@@ -541,3 +574,37 @@ def PlotTerraceSurfaces(DataDirectory, fname_prefix, terraces):
         ax.set_zlabel('Elevation (m)')
         plt.savefig(DataDirectory+fname_prefix+'_3d_plot_'+str(id)+'.png',format='png',dpi=300)
         plt.clf()
+
+#-------------------------------------------------------------------------------------------#
+# Functions for merging to plot the whole UMV together
+#-------------------------------------------------------------------------------------------#
+_nsre = re.compile('([0-9]+)')
+def natural_sort_key(s):
+    return [int(text) if text.isdigit() else text.lower()
+            for text in re.split(_nsre, s)]
+
+def merge_baselines(base_dir, lp_file, lp):
+    """
+    Function to read in the baseline csv files and merge them for the whole UMV
+    """
+
+    subdirs = next(os.walk(base_dir))[1]
+    subdirs.sort(key=natural_sort_key)
+    master_df = pd.DataFrame()
+    for dir in subdirs:
+        if 'UMV_DEM5m_' in dir:
+            print(dir)
+            baseline = pd.read_csv(base_dir+dir+'\\'+dir+'_final_baseline_channel_info.csv')
+            baseline['reach'] = dir
+            # get the last distance along the baseline
+            master_df = master_df.append(baseline)
+    master_df = master_df.round({'latitude': 3, 'longitude': 3})
+    master_df.drop_duplicates(subset=['latitude', 'longitude'], inplace=True)
+
+    c = fiona.collection(lp, 'r')
+    rec = c.next()
+    line = LineString(shape(rec['geometry']))
+    master_df['DistAlongBaseline_new'] = master_df.apply(lambda x: dist_along_line(x['X'], x['Y'], line), axis=1)
+
+
+    master_df.to_csv(lp_file, index=False)
