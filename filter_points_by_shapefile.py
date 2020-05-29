@@ -18,7 +18,7 @@ subdirs = next(os.walk(data_dir))[1]
 
 for dir in subdirs:
     print(dir)
-    if 'UMV_DEM5m_1a' in dir:
+    if 'UMV_DEM5m_10' in dir:
 
         # get the filename
         s = dir.split('_')
@@ -47,7 +47,7 @@ for dir in subdirs:
                      "width": out_image.shape[2],
                      "transform": out_transform})
 
-        with rasterio.open(data_dir+dir+'\\'+fname+'_terrace_relief_masked_Andy.tif', "w", **out_meta) as dest:
+        with rasterio.open(data_dir+dir+'\\'+fname+'_terrace_relief_masked.tif', "w", **out_meta) as dest:
             dest.write(out_image)
 
         #read in the points csv file
@@ -73,4 +73,4 @@ for dir in subdirs:
         output_df = df.loc[keep_index]
         # write the new IDs to a new column
         output_df['new_ID'] = id_index
-        output_df.to_csv(data_dir+dir+'\\'+fname+'_final_terrace_info_filtered_Andy.csv', index=False)
+        output_df.to_csv(data_dir+dir+'\\'+fname+'_final_terrace_info_filtered.csv', index=False)

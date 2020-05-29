@@ -260,7 +260,7 @@ def get_distance_along_baseline_points(terraces, lp):
 
     Args:
         terraces: the dataframe with the terrace info
-        lp_shp: the csv file of the points along the baseline
+        lp: the csv file of the points along the baseline
 
     Returns:
         terrace dataframe with additional column - 'DistAlongBaseline_new'.
@@ -381,7 +381,7 @@ def long_profiler_all_terraces(DataDirectory, fname_prefix, terraces, lp, FigFor
     #ax = terraces.plot.scatter(x='DistAlongBaseline_new', y='Elevation', c='new_ID', colormap='viridis', s=0.2)
 
     # plot the main stem channel in black
-    plt.plot(lp['DistAlongBaseline']/1000,lp['Elevation'], c='k', lw=2)
+    plt.plot(lp['DistAlongBaseline_new']/1000,lp['Elevation'], c='k', lw=2)
 
     # now plot each terrace individually
     terrace_ids = terraces.new_ID.unique()
@@ -433,7 +433,7 @@ def long_profiler_all_terraces(DataDirectory, fname_prefix, terraces, lp, FigFor
     master_df.to_csv(DataDirectory+fname_prefix+'_terrace_means.csv', index=False)
     #ax.set_ylim(200,260)
     # set axis params and save
-    ax.set_xlabel('Distance downstream (m)')
+    ax.set_xlabel('Distance downstream (km)')
     ax.set_ylabel('Elevation (m)')
     plt.colorbar(cmap=cm.Reds,norm=norm, label="Elevation above modern channel (m)")
     #plt.legend(loc='upper right')
@@ -601,10 +601,7 @@ def merge_baselines(base_dir, lp_file, lp):
     master_df = master_df.round({'latitude': 3, 'longitude': 3})
     master_df.drop_duplicates(subset=['latitude', 'longitude'], inplace=True)
 
-    c = fiona.collection(lp, 'r')
-    rec = c.next()
-    line = LineString(shape(rec['geometry']))
-    master_df['DistAlongBaseline_new'] = master_df.apply(lambda x: dist_along_line(x['X'], x['Y'], line), axis=1)
-
-
+    get_distance_along_baseline_points(master_df, master_df)
     master_df.to_csv(lp_file, index=False)
+
+    return master_df

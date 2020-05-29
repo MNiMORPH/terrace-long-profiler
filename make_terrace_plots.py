@@ -108,27 +108,31 @@ def main(argv):
 
         # read in the long profile csv
         lp_file = this_dir+args.fname_prefix+'_baseline_channel_info.csv'
+        lp_df = pd.DataFrame()
         if os.path.isfile(lp_file):
-            lp_csv = pd.read_csv(lp_file)
+            lp_df = pd.read_csv(lp_file)
         else:
-            TerracePlotter.merge_baselines(base_dir, lp_file, lp)
+            lp_df = TerracePlotter.merge_baselines(base_dir, lp_file, lp)
 
         # check if you have already calculated the distance along the baseline for each point
         if os.path.isfile(dist_file):
             terraces = pd.read_csv(dist_file)
-            print(terraces)
+            print(terraces['DistAlongBaseline_new'])
         else:
             # find each sub-directory and get the distance from the shapefile
             subdirs = next(os.walk(base_dir))[1]
             master_df = pd.DataFrame()
             for dir in subdirs:
                 if 'UMV_DEM5m_' in dir:
-                    terraces = pd.read_csv(base_dir+dir+'\\'+dir+'_final_terrace_info_filtered.csv')
-                    # find the nearest point along the baseline for each terrace ID
-                    terraces = TerracePlotter.get_distance_along_baseline(terraces, lp)
-                    master_df = master_df.append(terraces)
+                    if not '10' in dir:
+                        terraces = pd.read_csv(base_dir+dir+'\\'+dir+'_final_terrace_info_filtered.csv')
+                        # find the nearest point along the baseline for each terrace ID
+                        terraces = TerracePlotter.get_distance_along_baseline_points(terraces, lp_df)
+                        master_df = master_df.append(terraces)
             master_df.to_csv(dist_file, index=False)
 
+        # make the long profile plot
+        TerracePlotter.long_profiler_all_terraces(this_dir, args.fname_prefix, terraces, lp_df)
 
 
 
