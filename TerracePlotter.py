@@ -377,8 +377,6 @@ def long_profiler_all_terraces(DataDirectory, fname_prefix, terraces, lp, FigFor
 
     fig = plt.figure()
     ax = plt.subplot(111)
-    # now plot
-    #ax = terraces.plot.scatter(x='DistAlongBaseline_new', y='Elevation', c='new_ID', colormap='viridis', s=0.2)
 
     # plot the main stem channel in black
     plt.plot(lp['DistAlongBaseline_new']/1000,lp['Elevation'], c='k', lw=2)
@@ -400,18 +398,7 @@ def long_profiler_all_terraces(DataDirectory, fname_prefix, terraces, lp, FigFor
         _xTerraces = sorted_df['DistAlongBaseline_new'].values
         _zTerraces = sorted_df['Elevation'].values
         ChannelRelief = sorted_df['ChannelRelief'].values
-        #plt.scatter(_xTerraces, _zTerraces, s = 0.2)
 
-        # # bin the points into 100 m bins and find the median elevation within that bin.
-        # bin_width = 0.1
-        # n_bins = int((_xTerraces.max() - _xTerraces.min())/bin_width)
-        # if not n_bins == 0:
-        # #n_bins = 20
-        #     print("Number of bins:", n_bins)
-        #     bin_medians, bin_edges, binnumber = stats.binned_statistic(_xTerraces, _zTerraces, statistic='median', bins=n_bins)
-        #     #bin_width = (bin_edges[1] - bin_edges[0])
-        #     bin_centres = bin_edges[1:] - bin_width/2
-        #     plt.plot(bin_centres, bin_medians, lw=2, c=colours[i])
         mean_elevation = np.mean(_zTerraces)
         std_elevation = np.std(_zTerraces)
         # get the distance in the middle of the terrace
@@ -419,7 +406,7 @@ def long_profiler_all_terraces(DataDirectory, fname_prefix, terraces, lp, FigFor
         mean_relief = np.mean(ChannelRelief)
 
         #print(mean_relief)
-        plt.scatter(distance, mean_elevation, c=mean_relief, s=areas[id]/100000, edgecolors='k', cmap=cm.Reds, norm=norm, zorder=1)
+        plt.scatter(distance, mean_elevation, c=mean_relief, s=areas[id]/100000, edgecolors='k', cmap=cm.Reds, norm=norm, zorder=1, alpha=0.5)
         plt.errorbar(distance, mean_elevation, yerr=std_elevation, zorder=0.1, c='0.5', lw=1, capsize=2, alpha=0.5)
 
         # append the mean data
@@ -431,12 +418,11 @@ def long_profiler_all_terraces(DataDirectory, fname_prefix, terraces, lp, FigFor
     master_df = pd.DataFrame(data, columns=['new_ID', 'mean_elevation', 'std_elevation', 'flow_dist', 'mean_relief', 'area'])
     print(master_df)
     master_df.to_csv(DataDirectory+fname_prefix+'_terrace_means.csv', index=False)
-    #ax.set_ylim(200,260)
+
     # set axis params and save
     ax.set_xlabel('Distance downstream (km)')
     ax.set_ylabel('Elevation (m)')
     plt.colorbar(cmap=cm.Reds,norm=norm, label="Elevation above modern channel (m)")
-    #plt.legend(loc='upper right')
     plt.tight_layout()
     plt.savefig(DataDirectory+fname_prefix+'_terrace_plot.'+FigFormat,format=FigFormat,dpi=300)
     plt.clf()
@@ -588,13 +574,15 @@ def merge_baselines(base_dir, lp_file, lp):
     Function to read in the baseline csv files and merge them for the whole UMV
     """
 
+    path_sep = os.path.sep
+
     subdirs = next(os.walk(base_dir))[1]
     subdirs.sort(key=natural_sort_key)
     master_df = pd.DataFrame()
     for dir in subdirs:
         if 'UMV_DEM5m_' in dir:
             print(dir)
-            baseline = pd.read_csv(base_dir+dir+'\\'+dir+'_final_baseline_channel_info.csv')
+            baseline = pd.read_csv(base_dir+dir+path_sep+dir+'_final_baseline_channel_info.csv')
             baseline['reach'] = dir
             # get the last distance along the baseline
             master_df = master_df.append(baseline)
@@ -605,3 +593,76 @@ def merge_baselines(base_dir, lp_file, lp):
     master_df.to_csv(lp_file, index=False)
 
     return master_df
+
+def long_profiler_all_reaches(DataDirectory, fname_prefix, terraces, lp, FigFormat='png'):
+    """
+    Plot each terrace surface against the long profile of the entire UMV
+    main channel.
+
+    Args:
+        terraces: the dataframe with the terrace info
+        lp: the dataframe with the baseline profile info
+        FigFormat: the format of the figure, default = png
+
+    Returns:
+        terrace long profile plot
+
+    Author: FJC
+    """
+
+    fig = plt.figure()
+    ax = plt.subplot(111)
+    # now plot
+    #ax = terraces.plot.scatter(x='DistAlongBaseline_new', y='Elevation', c='new_ID', colormap='viridis', s=0.2)
+
+    # plot the main stem channel in black
+    plt.plot(lp['DistAlongBaseline_new']/1000,lp['Elevation'], c='k', lw=2)
+
+    # now plot each terrace individually
+    reaches = terraces.reach.unique()
+    # normalize colours by relief above channel
+    norm = colors.Normalize(vmin=terraces.ChannelRelief.min(),vmax=terraces.ChannelRelief.max())
+    # get area of terraces: size of marker is scaled by area
+    areas = get_terrace_areas(terraces, res=5)
+    print(areas)
+
+    data = []
+    for r in reach:
+        this_reach = terraces[terraces.reach == r]
+        terrace_ids = this_reach.new_ID.unique()
+        for i, id in enumerate(terrace_ids):
+            sys.stdout.write("This id is %d       \r" %(id))
+            this_df = this_reach[this_reach.new_ID == id]
+            this_df['DistAlongBaseline_new'] = this_df['DistAlongBaseline_new']/1000
+            sorted_df = this_df.sort_values(by='DistAlongBaseline_new')
+            _xTerraces = sorted_df['DistAlongBaseline_new'].values
+            _zTerraces = sorted_df['Elevation'].values
+            ChannelRelief = sorted_df['ChannelRelief'].values
+
+            mean_elevation = np.mean(_zTerraces)
+            std_elevation = np.std(_zTerraces)
+            # get the distance in the middle of the terrace
+            distance = np.take(_xTerraces, _xTerraces.size // 2)
+            mean_relief = np.mean(ChannelRelief)
+
+            plt.scatter(distance, mean_elevation, c=mean_relief, s=10, edgecolors='k', cmap=cm.Reds, norm=norm, zorder=2, marker='x')
+            plt.errorbar(distance, mean_elevation, yerr=std_elevation, zorder=0.1, c='0.5', lw=1, capsize=2, alpha=0.5)
+
+            # append the mean data
+            data.append([id, mean_elevation, std_elevation, distance, mean_relief, areas[id]])
+
+
+    # save the mean dataframe to csv
+    print(data)
+    master_df = pd.DataFrame(data, columns=['new_ID', 'mean_elevation', 'std_elevation', 'flow_dist', 'mean_relief', 'area'])
+    print(master_df)
+    master_df.to_csv(DataDirectory+fname_prefix+'_terrace_means.csv', index=False)
+    ax.set_ylim(0,350)
+
+    # set axis params and save
+    ax.set_xlabel('Distance downstream (km)')
+    ax.set_ylabel('Elevation (m)')
+    plt.colorbar(cmap=cm.Reds,norm=norm, label="Elevation above modern channel (m)")
+    plt.tight_layout()
+    plt.savefig(DataDirectory+fname_prefix+'_terrace_plot.'+FigFormat,format=FigFormat,dpi=300)
+    plt.clf()
