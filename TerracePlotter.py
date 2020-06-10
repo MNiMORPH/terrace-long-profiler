@@ -569,28 +569,28 @@ def natural_sort_key(s):
     return [int(text) if text.isdigit() else text.lower()
             for text in re.split(_nsre, s)]
 
-def merge_baselines(base_dir, lp_file, lp):
+def merge_baselines(lp, out_fname):
     """
     Function to read in the baseline csv files and merge them for the whole UMV
     """
+    lp_df = pd.read_csv(lp)
 
-    path_sep = os.path.sep
+    # get the reaches and sort numerically
+    reaches = sorted(lp_df.layer.unique(), key=natural_sort_key)
 
-    subdirs = next(os.walk(base_dir))[1]
-    subdirs.sort(key=natural_sort_key)
     master_df = pd.DataFrame()
-    for dir in subdirs:
-        if 'UMV_DEM5m_' in dir:
-            print(dir)
-            baseline = pd.read_csv(base_dir+dir+path_sep+dir+'_final_baseline_channel_info.csv')
-            baseline['reach'] = dir
-            # get the last distance along the baseline
-            master_df = master_df.append(baseline)
-    master_df = master_df.round({'latitude': 3, 'longitude': 3})
-    master_df.drop_duplicates(subset=['latitude', 'longitude'], inplace=True)
+    # now loop through each one to create the new
+    end_dist = 0
+    for r in reaches:
+        this_df = lp_df[lp_df['layer'] == r]
+        #sort this DF by old distance along the baseline
+        this_df.sort_values(by='DistAlongB')
+        this_df['DistAlongBaseline_new'] = this_df['DistAlongB'] + end_dist
+        print(this_df)
+        end_dist = this_df['DistAlongBaseline_new'].max()
+        master_df = master_df.append(this_df)
 
-    get_distance_along_baseline_points(master_df, master_df)
-    master_df.to_csv(lp_file, index=False)
+    master_df.to_csv(out_fname, index=False)
 
     return master_df
 
@@ -627,7 +627,7 @@ def long_profiler_all_reaches(DataDirectory, fname_prefix, terraces, lp, FigForm
     print(areas)
 
     data = []
-    for r in reach:
+    for r in reaches:
         this_reach = terraces[terraces.reach == r]
         terrace_ids = this_reach.new_ID.unique()
         for i, id in enumerate(terrace_ids):
@@ -657,7 +657,7 @@ def long_profiler_all_reaches(DataDirectory, fname_prefix, terraces, lp, FigForm
     master_df = pd.DataFrame(data, columns=['new_ID', 'mean_elevation', 'std_elevation', 'flow_dist', 'mean_relief', 'area'])
     print(master_df)
     master_df.to_csv(DataDirectory+fname_prefix+'_terrace_means.csv', index=False)
-    ax.set_ylim(0,350)
+    ax.set_ylim(50,300)
 
     # set axis params and save
     ax.set_xlabel('Distance downstream (km)')

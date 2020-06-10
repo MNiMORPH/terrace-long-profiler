@@ -105,7 +105,7 @@ def main(argv):
             TerracePlotter.MakeTerraceHeatMap(this_dir, args.fname_prefix, prec=100, bw_method=0.03, FigFormat=args.FigFormat, ages="")
 
     else: # Compile all the reaches to make a terrace plot for the whole river.
-        lp = this_dir+'UMV_combined'+path_sep+args.fname_prefix+'_baseline.shp'
+        lp = this_dir+'UMV_combined'+path_sep+args.fname_prefix+'_points.csv'
         dist_file = this_dir+'UMV_combined'+path_sep+args.fname_prefix+'_terrace_info_filtered_dist.csv'
 
         # read in the long profile csv
@@ -114,7 +114,7 @@ def main(argv):
         if os.path.isfile(lp_file):
             lp_df = pd.read_csv(lp_file)
         else:
-            lp_df = TerracePlotter.merge_baselines(base_dir, lp_file, lp)
+            lp_df = TerracePlotter.merge_baselines(lp, lp_file)
         lp_df = lp_df[lp_df['Elevation'] != -9999]
 
         # check if you have already calculated the distance along the baseline for each point
