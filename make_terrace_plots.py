@@ -1,5 +1,14 @@
 # Driver to make the terrace profile plots
-# FJC 01/11/17
+# You need to have the following things in order to run this code:
+#
+# **fname** = name of your DEM. You MUST specify this as one of the parameters or you will get an error.
+# **fname_baseline_channel_info.csv** = a CSV file with the latitude, longitude and elevation of the centreline that you want to
+# plot the terraces along. This could be either a valley centreline or a modern river long profile. You can either get this from
+# LSDTopoTools or supply your own.
+# **fname_terrace_info.csv** = a CSV file with the latitude, longitude and elevation of each terrace pixel. You can get this from
+# LSDTopoTools or from a map of digitised terraces.
+#-----------------------------------------------------------------------------------------#
+# FJC 15/01/21
 
 # import modules
 import matplotlib
@@ -70,6 +79,9 @@ def main(argv):
             output.write(str(arg)+','+str(getattr(args, arg))+'\n')
         output.close()
 
+    # This statement checks whether you want to run the plots for a single reach, or whether you want to loop through
+    # all the reaches and make a combined plot of all the terrace locations.
+    # the first condition is if you just want to plot a single reach
     if not args.compiled:
         # read in the baseline channel csv
         lp = pd.read_csv(this_dir+args.fname_prefix+'_baseline_channel_info.csv')
@@ -77,34 +89,39 @@ def main(argv):
 
         # read in the terrace csv
         terraces = pd.DataFrame()
-        dist_file = this_dir+args.fname_prefix+'_terrace_info_filtered_dist.csv'
+        dist_file = this_dir+args.fname_prefix+'_terrace_info_dist.csv'
         # check if you have already calculated the distance along the baseline for each point
         if os.path.isfile(dist_file):
-            terraces = pd.read_csv(this_dir+args.fname_prefix+'_terrace_info_filtered_dist.csv')
+            terraces = pd.read_csv(this_dir+args.fname_prefix+'_terrace_info_dist.csv')
         else:
-            terraces = pd.read_csv(this_dir+args.fname_prefix+'_terrace_info_filtered.csv')
+            terraces = pd.read_csv(this_dir+args.fname_prefix+'terrace_info.csv')
             # find the nearest point along the baseline for each terrace ID
             terraces = TerracePlotter.get_distance_along_baseline_points(terraces, lp)
-            terraces.to_csv(this_dir+args.fname_prefix+'_terrace_info_filtered_dist.csv', index=False)
+            terraces.to_csv(this_dir+args.fname_prefix+'_terrace_info_dist.csv', index=False)
 
-
+        # this function makes a plot of the long profile and the terrace elevations. For each terrace it plots the distance
+        # as the middle of each terrace and the mean elevation of the terrace surface.
         if args.long_profiler:
             TerracePlotter.long_profiler_all_terraces(this_dir, args.fname_prefix, terraces, lp)
-            #TerracePlotter.long_profiler(this_dir, args.fname_prefix, terraces, lp)
 
+        # this function makes 3d plots of each terrace surface
         if args.plot_3d:
             TerracePlotter.PlotTerraceSurfaces(this_dir, args.fname_prefix, terraces)
 
+        # DEPRECATED - function to make shaded relief plots of the terrace surfaces.
         # if args.plot_rasters:
         #     TerracePlotter.MakeRasterPlotTerraceIDs(this_dir, args.fname_prefix, args.FigFormat, args.size_format)
         #     TerracePlotter.MakeRasterPlotTerraceElev(this_dir, args.fname_prefix, args.FigFormat, args.size_format)
-        if args.dips:
-            TerracePlotter.write_dip_and_dipdir_to_csv(this_dir,args.fname_prefix, args.digitised_terraces, args.shapefile_name)
+        # DEPRECATED - function to get the dip and dip direction of each terrace surface.
+        #if args.dips:
+            #TerracePlotter.write_dip_and_dipdir_to_csv(this_dir,args.fname_prefix, args.digitised_terraces, args.shapefile_name)
             # TerracePlotter.MakeRasterPlotTerraceDips(this_dir,args.fname_prefix,FigFormat=args.FigFormat,size_format=args.size_format)
+        # this function makes a heat map showing where the majority of terrace pixels are located compared to the long profile.
         if args.heat_map:
             TerracePlotter.MakeTerraceHeatMap(this_dir, args.fname_prefix, prec=100, bw_method=0.03, FigFormat=args.FigFormat, ages="")
 
-    else: # Compile all the reaches to make a terrace plot for the whole river.
+    # this condition checks if you want make a combined plot of all the reaches.
+    else:
         lp = this_dir+'UMV_combined'+path_sep+args.fname_prefix+'_points.csv'
         dist_file = this_dir+'UMV_combined'+path_sep+args.fname_prefix+'_terrace_info_filtered_dist.csv'
 
