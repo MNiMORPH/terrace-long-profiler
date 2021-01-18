@@ -11,13 +11,14 @@ import os
 import rasterio
 import rasterio.mask
 
-data_dir = '/home/fiona/MississippiTerraces/'
+#data_dir = '/home/fiona/MississippiTerraces/'
+data_dir = 'D:\\MississippiTerraces\\'
 
 subdirs = next(os.walk(data_dir))[1]
 
 for dir in subdirs:
     print(dir)
-    if 'UMV_DEM5m_' in dir:
+    if 'UMV_DEM5m_10' in dir:
 
         # get the filename
         s = dir.split('_')
@@ -26,7 +27,7 @@ for dir in subdirs:
         print(fname)
 
         # get the shapefile as a polygon
-        c = fiona.open(data_dir+dir+'/'+fname+'_terraces.shp')
+        c = fiona.open(data_dir+dir+'\\'+fname+'_terraces.shp')
         shp_geom = []
         new_ids = []
         i = 0
@@ -36,7 +37,7 @@ for dir in subdirs:
             i+=1
 
         # mask the relief raster to this geometry
-        with rasterio.open(data_dir+dir+'/'+fname+'_final_terrace_relief_final.bil') as src:
+        with rasterio.open(data_dir+dir+'\\'+fname+'_final_terrace_relief_final.bil') as src:
             out_image, out_transform = rasterio.mask.mask(src, shp_geom, crop=True)
             out_meta = src.meta
 
@@ -46,11 +47,11 @@ for dir in subdirs:
                      "width": out_image.shape[2],
                      "transform": out_transform})
 
-        with rasterio.open(data_dir+dir+'/'+fname+'_terrace_relief_masked.tif', "w", **out_meta) as dest:
+        with rasterio.open(data_dir+dir+'\\'+fname+'_terrace_relief_masked.tif', "w", **out_meta) as dest:
             dest.write(out_image)
 
         #read in the points csv file
-        pts_csv = data_dir+dir+'/'+fname+'_final_terrace_info.csv'
+        pts_csv = data_dir+dir+'\\'+fname+'_final_terrace_info.csv'
         pts = []
         df = pd.read_csv(pts_csv)
 
@@ -72,4 +73,4 @@ for dir in subdirs:
         output_df = df.loc[keep_index]
         # write the new IDs to a new column
         output_df['new_ID'] = id_index
-        output_df.to_csv(data_dir+dir+'/'+fname+'_final_terrace_info_filtered.csv', index=False)
+        output_df.to_csv(data_dir+dir+'\\'+fname+'_final_terrace_info_filtered.csv', index=False)
